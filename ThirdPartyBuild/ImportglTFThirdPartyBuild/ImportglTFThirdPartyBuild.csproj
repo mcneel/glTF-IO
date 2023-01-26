@@ -1,0 +1,39 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <Version>1.0</Version>
+    <Title>ImportglTFThirdPartyBuild</Title>
+    <Description>Description of ImportglTFThirdPartyBuild</Description>
+    <TargetExt>.rhp</TargetExt>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="EmbeddedResources\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Include="..\..\glTF-BinImporter\glTFBinImporterPlugIn.cs" Link="glTFBinImporterPlugIn.cs" />
+    <Compile Include="..\..\glTF-BinImporter\GltfRhinoConverter.cs" Link="GltfRhinoConverter.cs" />
+    <Compile Include="..\..\glTF-BinImporter\GltfRhinoMaterialConverter.cs" Link="GltfRhinoMaterialConverter.cs" />
+    <Compile Include="..\..\glTF-BinImporter\GltfRhinoMeshConverter.cs" Link="GltfRhinoMeshConverter.cs" />
+    <Compile Include="..\..\glTF-BinImporter\GltfUtils.cs" Link="GltfUtils.cs" />
+    <Compile Include="..\..\glTF-BinImporter\RhinoGltfMetallicRoughnessConverter.cs" Link="RhinoGltfMetallicRoughnessConverter.cs" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <PackageReference Include="glTF2Loader" Version="1.1.4-alpha" />
+    <PackageReference Include="RhinoCommon" Version="7.26.23009.7001" IncludeAssets="compile;build" />
+  </ItemGroup>
+  
+  <ItemGroup>
+    <ProjectReference Include="..\glTFExtensionThirdPartyBuild\glTFExtensionThirdPartyBuild.csproj" />
+  </ItemGroup>
+  
+  <PropertyGroup Condition="$(Configuration) == 'Debug' AND $([MSBuild]::IsOSPlatform(Windows))">
+    <StartProgram>C:\Program Files\Rhino 7\System\Rhino.exe</StartProgram>
+    <StartArguments></StartArguments>
+    <StartAction>Program</StartAction>
+  </PropertyGroup>
+  
+</Project>
