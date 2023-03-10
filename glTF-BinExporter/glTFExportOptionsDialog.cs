@@ -53,7 +53,7 @@ namespace glTF_BinExporter
 
       exportMaterials.Text = Rhino.UI.Localization.LocalizeString("Export materials", 5);
 
-      useDoubleSidedMaterials.Text = Rhino.UI.LOC.STR("Use double sided materials");
+      useDoubleSidedMaterials.Text = Rhino.UI.Localization.LocalizeString("Use double sided materials", 28);
 
       useDisplayColorForUnsetMaterial.Text = Rhino.UI.Localization.LocalizeString("Use display color for objects with no material set", 6);
 
