@@ -243,7 +243,8 @@ namespace glTF_BinExporter
         PbrMetallicRoughness = new glTFLoader.Schema.MaterialPbrMetallicRoughness()
         {
           BaseColorFactor = color.ToFloatArray(),
-        }
+        },
+        DoubleSided = options.UseDoubleSidedMaterials,
       };
 
       return dummy.Materials.AddAndReturnIndex(material);
