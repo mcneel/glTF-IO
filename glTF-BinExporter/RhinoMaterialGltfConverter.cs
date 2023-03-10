@@ -1,4 +1,4 @@
-﻿using Rhino.Display;
+using Rhino.Display;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 using Rhino.Render;
@@ -49,6 +49,7 @@ namespace glTF_BinExporter
             {
                 Name = renderMaterial.Name,
                 PbrMetallicRoughness = new glTFLoader.Schema.MaterialPbrMetallicRoughness(),
+                DoubleSided = options.UseDoubleSidedMaterials,
             };
 
             if (!rhinoMaterial.IsPhysicallyBased)

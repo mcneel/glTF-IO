@@ -14,6 +14,7 @@ namespace glTF_BinExporter
 
     private CheckBox mapZtoY = new CheckBox();
     private CheckBox exportMaterials = new CheckBox();
+    private CheckBox useDoubleSidedMaterials = new CheckBox();
     private CheckBox useDisplayColorForUnsetMaterial = new CheckBox();
     private CheckBox exportLayers = new CheckBox();
 
@@ -51,6 +52,8 @@ namespace glTF_BinExporter
       mapZtoY.Text = Rhino.UI.Localization.LocalizeString("Map Rhino Z to glTF Y", 4);
 
       exportMaterials.Text = Rhino.UI.Localization.LocalizeString("Export materials", 5);
+
+      useDoubleSidedMaterials.Text = Rhino.UI.LOC.STR("Use double sided materials");
 
       useDisplayColorForUnsetMaterial.Text = Rhino.UI.Localization.LocalizeString("Use display color for objects with no material set", 6);
 
@@ -165,6 +168,7 @@ namespace glTF_BinExporter
           {
             new TableRow(mapZtoY),
             new TableRow(exportMaterials),
+            new TableRow(useDoubleSidedMaterials),
             new TableRow(useDisplayColorForUnsetMaterial),
             new TableRow(exportLayers),
             null,
@@ -242,6 +246,7 @@ namespace glTF_BinExporter
       EnableDisableMaterialControls(glTFBinExporterPlugin.ExportMaterials);
       exportLayers.Checked = glTFBinExporterPlugin.ExportLayers;
 
+      useDoubleSidedMaterials.Checked = glTFBinExporterPlugin.UseDoubleSidedMaterials;
       useDisplayColorForUnsetMaterial.Checked = glTFBinExporterPlugin.UseDisplayColorForUnsetMaterials;
 
       bool controlNet = glTFBinExporterPlugin.SubDExportMode == SubDMode.ControlNet;
@@ -270,6 +275,7 @@ namespace glTF_BinExporter
 
       glTFBinExporterPlugin.MapRhinoZToGltfY = GetCheckboxValue(mapZtoY);
       glTFBinExporterPlugin.ExportMaterials = GetCheckboxValue(exportMaterials);
+      glTFBinExporterPlugin.UseDoubleSidedMaterials = GetCheckboxValue(useDoubleSidedMaterials);
       glTFBinExporterPlugin.UseDisplayColorForUnsetMaterials = GetCheckboxValue(useDisplayColorForUnsetMaterial);
       glTFBinExporterPlugin.ExportLayers = GetCheckboxValue(exportLayers);
 
@@ -325,6 +331,7 @@ namespace glTF_BinExporter
     private void EnableDisableMaterialControls(bool enabled)
     {
       useDisplayColorForUnsetMaterial.Enabled = enabled;
+      useDoubleSidedMaterials.Enabled = enabled;
     }
 
     private void UseSubdControlNet_CheckedChanged(object sender, EventArgs e)
