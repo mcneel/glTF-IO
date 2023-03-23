@@ -17,7 +17,7 @@ namespace glTF_BinExporter
 
   class RhinoDocGltfConverter
   {
-    public RhinoDocGltfConverter(glTFExportOptions options, bool binary, RhinoDoc doc, IEnumerable<Rhino.DocObjects.RhinoObject> objects, Rhino.Render.LinearWorkflow workflow)
+    public RhinoDocGltfConverter(glTFExportOptions options, bool binary, RhinoDoc doc, Rhino.DocObjects.RhinoObject[] objects, Rhino.Render.LinearWorkflow workflow)
     {
       this.doc = doc;
       this.options = options;
@@ -31,13 +31,13 @@ namespace glTF_BinExporter
       this.doc = doc;
       this.options = options;
       this.binary = binary;
-      this.objects = doc.Objects;
+      this.objects = doc.Objects.ToArray();
       this.workflow = null;
     }
 
     private RhinoDoc doc = null;
 
-    private IEnumerable<Rhino.DocObjects.RhinoObject> objects = null;
+    private Rhino.DocObjects.RhinoObject[] objects = null;
 
     private bool binary = false;
     private glTFExportOptions options = null;
@@ -351,11 +351,11 @@ namespace glTF_BinExporter
       return rhinoObject.Name;
     }
 
-    public List<ObjectExportData> SanitizeRhinoObjects(IEnumerable<Rhino.DocObjects.RhinoObject> rhinoObjects)
+    public List<ObjectExportData> SanitizeRhinoObjects(Rhino.DocObjects.RhinoObject[] rhinoObjects)
     {
       List<ObjectExportData> explodedObjects = new List<ObjectExportData>();
 
-      foreach (var rhinoObject in rhinoObjects)
+      foreach (Rhino.DocObjects.RhinoObject rhinoObject in rhinoObjects)
       {
         if (rhinoObject.ObjectType == Rhino.DocObjects.ObjectType.InstanceReference && rhinoObject is Rhino.DocObjects.InstanceObject instanceObject)
         {
@@ -383,9 +383,6 @@ namespace glTF_BinExporter
           });
         }
       }
-
-      //Remove Unmeshable
-      explodedObjects.RemoveAll(x => !x.Object.IsMeshable(Rhino.Geometry.MeshType.Any));
 
       foreach (var item in explodedObjects)
       {

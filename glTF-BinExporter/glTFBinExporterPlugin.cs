@@ -6,6 +6,7 @@ using Rhino.UI;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace glTF_BinExporter
 {
@@ -53,7 +54,7 @@ namespace glTF_BinExporter
 
       glTFExportOptions exportOptions = glTFBinExporterPlugin.GetSavedOptions();
 
-      IEnumerable<Rhino.DocObjects.RhinoObject> objects = GetObjectsToExport(doc, options);
+      Rhino.DocObjects.RhinoObject[] objects = GetObjectsToExport(doc, options);
 
       if (!DoExport(filename, exportOptions, binary, doc, objects, doc.RenderSettings.LinearWorkflow))
       {
@@ -63,15 +64,15 @@ namespace glTF_BinExporter
       return WriteFileResult.Success;
     }
 
-    private IEnumerable<Rhino.DocObjects.RhinoObject> GetObjectsToExport(RhinoDoc doc, FileWriteOptions options)
+    private Rhino.DocObjects.RhinoObject[] GetObjectsToExport(RhinoDoc doc, FileWriteOptions options)
     {
       if (options.WriteSelectedObjectsOnly)
       {
-        return doc.Objects.GetSelectedObjects(false, false);
+        return doc.Objects.GetSelectedObjects(false, false).ToArray();
       }
       else
       {
-        return doc.Objects;
+        return doc.Objects.ToArray();
       }
     }
 
@@ -83,7 +84,7 @@ namespace glTF_BinExporter
       exportOptionsDialog.ShowModal(Rhino.UI.RhinoEtoApp.MainWindow);
     }
 
-    public static bool DoExport(string fileName, glTFExportOptions options, bool binary, RhinoDoc doc, IEnumerable<Rhino.DocObjects.RhinoObject> rhinoObjects, Rhino.Render.LinearWorkflow workflow)
+    public static bool DoExport(string fileName, glTFExportOptions options, bool binary, RhinoDoc doc, Rhino.DocObjects.RhinoObject[] rhinoObjects, Rhino.Render.LinearWorkflow workflow)
     {
       RhinoDocGltfConverter converter = new RhinoDocGltfConverter(options, binary, doc, rhinoObjects, workflow);
       glTFLoader.Schema.Gltf gltf = converter.ConvertToGltf();
