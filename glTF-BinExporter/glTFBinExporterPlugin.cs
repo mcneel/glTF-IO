@@ -1,11 +1,13 @@
 using Rhino;
 using Rhino.Commands;
+using Rhino.DocObjects;
 using Rhino.FileIO;
 using Rhino.PlugIns;
 using Rhino.UI;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace glTF_BinExporter
 {
@@ -67,7 +69,8 @@ namespace glTF_BinExporter
     {
       if (options.WriteSelectedObjectsOnly)
       {
-        return doc.Objects.GetSelectedObjects(false, false);
+        //For some reason just returning doc.Objects.GetSelectedObjects(false, false) returns an empty IEnumerable
+        return doc.Objects.GetSelectedObjects(false, false).ToArray();
       }
       else
       {

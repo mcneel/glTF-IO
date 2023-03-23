@@ -9,7 +9,7 @@ namespace glTF_BinExporter
 {
   public class ObjectExportData
   {
-    public Rhino.Geometry.Mesh[] Meshes = null;
+    public List<Rhino.Geometry.Mesh> Meshes = new List<Rhino.Geometry.Mesh>();
     public Rhino.Geometry.Transform Transform = Rhino.Geometry.Transform.Identity;
     public Rhino.Render.RenderMaterial RenderMaterial = null;
     public Rhino.DocObjects.RhinoObject Object = null;
@@ -31,7 +31,7 @@ namespace glTF_BinExporter
       this.doc = doc;
       this.options = options;
       this.binary = binary;
-      this.objects = doc.Objects;
+      this.objects = doc.Objects.ToArray();
       this.workflow = null;
     }
 
@@ -264,58 +264,6 @@ namespace glTF_BinExporter
       }
     }
 
-    public Rhino.Geometry.Mesh[] GetMeshes(Rhino.DocObjects.RhinoObject rhinoObject)
-    {
-
-      if (rhinoObject.ObjectType == Rhino.DocObjects.ObjectType.Mesh)
-      {
-        Rhino.DocObjects.MeshObject meshObj = rhinoObject as Rhino.DocObjects.MeshObject;
-
-        return new Rhino.Geometry.Mesh[] { meshObj.MeshGeometry };
-      }
-      else if (rhinoObject.ObjectType == Rhino.DocObjects.ObjectType.SubD)
-      {
-        Rhino.DocObjects.SubDObject subdObject = rhinoObject as Rhino.DocObjects.SubDObject;
-
-        Rhino.Geometry.SubD subd = subdObject.Geometry as Rhino.Geometry.SubD;
-
-        Rhino.Geometry.Mesh mesh = null;
-
-        if (options.SubDExportMode == SubDMode.ControlNet)
-        {
-          mesh = Rhino.Geometry.Mesh.CreateFromSubDControlNet(subd);
-        }
-        else
-        {
-          int level = options.SubDLevel;
-
-          mesh = Rhino.Geometry.Mesh.CreateFromSubD(subd, level);
-        }
-
-        return new Rhino.Geometry.Mesh[] { mesh };
-      }
-
-      // Need to get a Mesh from the None-mesh object. Using the FastRenderMesh here. Could be made configurable.
-      // First make sure the internal rhino mesh has been created
-      rhinoObject.CreateMeshes(Rhino.Geometry.MeshType.Preview, Rhino.Geometry.MeshingParameters.FastRenderMesh, true);
-
-      // Then get the internal rhino meshes
-      Rhino.Geometry.Mesh[] meshes = rhinoObject.GetMeshes(Rhino.Geometry.MeshType.Preview);
-
-      List<Rhino.Geometry.Mesh> validMeshes = new List<Rhino.Geometry.Mesh>();
-
-      foreach (Rhino.Geometry.Mesh mesh in meshes)
-      {
-        if (MeshIsValidForExport(mesh))
-        {
-          mesh.EnsurePrivateCopy();
-          validMeshes.Add(mesh);
-        }
-      }
-
-      return validMeshes.ToArray();
-    }
-
     public bool MeshIsValidForExport(Rhino.Geometry.Mesh mesh)
     {
       if (mesh == null)
@@ -341,21 +289,11 @@ namespace glTF_BinExporter
       return true;
     }
 
-    private string GetDebugName(Rhino.DocObjects.RhinoObject rhinoObject)
-    {
-      if (string.IsNullOrEmpty(rhinoObject.Name))
-      {
-        return "(Unnamed)";
-      }
-
-      return rhinoObject.Name;
-    }
-
     public List<ObjectExportData> SanitizeRhinoObjects(IEnumerable<Rhino.DocObjects.RhinoObject> rhinoObjects)
     {
       List<ObjectExportData> explodedObjects = new List<ObjectExportData>();
 
-      foreach (var rhinoObject in rhinoObjects)
+      foreach (Rhino.DocObjects.RhinoObject rhinoObject in rhinoObjects)
       {
         if (rhinoObject.ObjectType == Rhino.DocObjects.ObjectType.InstanceReference && rhinoObject is Rhino.DocObjects.InstanceObject instanceObject)
         {
@@ -384,13 +322,11 @@ namespace glTF_BinExporter
         }
       }
 
-      //Remove Unmeshable
-      explodedObjects.RemoveAll(x => !x.Object.IsMeshable(Rhino.Geometry.MeshType.Any));
+      var flags = Rhino.Render.CustomRenderMeshes.RenderMeshProvider.Flags.Recursive;
 
       foreach (var item in explodedObjects)
       {
-        //Mesh
-
+        //Handle SubD objects with the SubD options
         if (item.Object.ObjectType == Rhino.DocObjects.ObjectType.SubD && item.Object.Geometry is Rhino.Geometry.SubD subd)
         {
           if (options.SubDExportMode == SubDMode.ControlNet)
@@ -399,7 +335,7 @@ namespace glTF_BinExporter
 
             mesh.Transform(item.Transform);
 
-            item.Meshes = new Rhino.Geometry.Mesh[] { mesh };
+            item.Meshes.Add(mesh);
           }
           else
           {
@@ -409,35 +345,62 @@ namespace glTF_BinExporter
 
             mesh.Transform(item.Transform);
 
-            item.Meshes = new Rhino.Geometry.Mesh[] { mesh };
+            item.Meshes.Add(mesh);
           }
         }
         else
         {
-          Rhino.Geometry.MeshingParameters parameters = item.Object.GetRenderMeshParameters();
+          Rhino.Render.CustomRenderMeshes.RenderMeshes renderMeshes = item.Object.RenderMeshes(Rhino.Geometry.MeshType.Render, null, null, ref flags, null, null);
 
-          if (item.Object.MeshCount(Rhino.Geometry.MeshType.Render, parameters) == 0)
+          if (renderMeshes.InstanceCount != 0)
           {
-            item.Object.CreateMeshes(Rhino.Geometry.MeshType.Render, parameters, false);
+            foreach (var mesh in renderMeshes)
+            {
+              Rhino.Geometry.Mesh copy = new Rhino.Geometry.Mesh();
+              copy.CopyFrom(mesh.Mesh);
+
+              if (!mesh.Transform.IsIdentity)
+              {
+                copy.Transform(mesh.Transform);
+              }
+
+              if (!item.Transform.IsIdentity)
+              {
+                copy.Transform(item.Transform);
+              }
+
+              item.Meshes.Add(copy);
+            }
           }
-
-          List<Rhino.Geometry.Mesh> meshes = new List<Rhino.Geometry.Mesh>(item.Object.GetMeshes(Rhino.Geometry.MeshType.Render));
-
-          foreach (Rhino.Geometry.Mesh mesh in meshes)
+          else
           {
-            mesh.EnsurePrivateCopy();
-            mesh.Transform(item.Transform);
+            Rhino.Geometry.MeshingParameters parameters = item.Object.GetRenderMeshParameters();
+
+            if (item.Object.MeshCount(Rhino.Geometry.MeshType.Render, parameters) == 0)
+            {
+              item.Object.CreateMeshes(Rhino.Geometry.MeshType.Render, parameters, false);
+            }
+
+            item.Meshes.AddRange(item.Object.GetMeshes(Rhino.Geometry.MeshType.Render));
+
+            foreach (Rhino.Geometry.Mesh mesh in item.Meshes)
+            {
+              mesh.EnsurePrivateCopy();
+
+              if(!item.Transform.IsIdentity)
+              {
+                mesh.Transform(item.Transform);
+              }
+            }
           }
-
-          //Remove bad meshes
-          meshes.RemoveAll(x => x == null || !MeshIsValidForExport(x));
-
-          item.Meshes = meshes.ToArray();
         }
+
+        //Remove bad meshes
+        item.Meshes.RemoveAll(x => x == null || !MeshIsValidForExport(x));
       }
 
       //Remove meshless objects
-      explodedObjects.RemoveAll(x => x.Meshes.Length == 0);
+      explodedObjects.RemoveAll(x => x.Meshes.Count == 0);
 
       return explodedObjects;
     }
