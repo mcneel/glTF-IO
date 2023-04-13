@@ -162,46 +162,53 @@ namespace glTF_BinImporter
 
     Rhino.Geometry.PointCloud GetPointCloud(glTFLoader.Schema.MeshPrimitive primitive)
     {
-      if (!AttemptGetVertexFloats(primitive, out List<Rhino.Geometry.Point3d> points))
+      if(primitive.Extensions != null && primitive.Extensions.TryGetValue(glTFExtensions.KHR_draco_mesh_compression.Tag, out object value))
       {
-        return null;
+        return GetDracoGeometry(value.ToString()) as Rhino.Geometry.PointCloud;
       }
-
-      Rhino.Geometry.PointCloud pointCloud = new Rhino.Geometry.PointCloud();
-
-      for (int i = 0; i < points.Count; i++)
+      else
       {
-        pointCloud.Add(points[i]);
-      }
-
-      if (AttemptGetVertexColors(primitive, out List<System.Drawing.Color> colors))
-      {
-        int min = Math.Min(colors.Count, pointCloud.Count);
-
-        for (int i = 0; i < min; i++)
+        if (!AttemptGetVertexFloats(primitive, out List<Rhino.Geometry.Point3d> points))
         {
-          pointCloud[i].Color = colors[i];
+          return null;
         }
-      }
 
-      if (AttemptGetNormals(primitive, out List<Rhino.Geometry.Vector3d> normals))
-      {
-        int min = Math.Min(normals.Count, pointCloud.Count);
+        Rhino.Geometry.PointCloud pointCloud = new Rhino.Geometry.PointCloud();
 
-        for (int i = 0; i < min; i++)
+        for (int i = 0; i < points.Count; i++)
         {
-          pointCloud[i].Normal = normals[i];
+          pointCloud.Add(points[i]);
         }
-      }
 
-      return pointCloud;
+        if (AttemptGetVertexColors(primitive, out List<System.Drawing.Color> colors))
+        {
+          int min = Math.Min(colors.Count, pointCloud.Count);
+
+          for (int i = 0; i < min; i++)
+          {
+            pointCloud[i].Color = colors[i];
+          }
+        }
+
+        if (AttemptGetNormals(primitive, out List<Rhino.Geometry.Vector3d> normals))
+        {
+          int min = Math.Min(normals.Count, pointCloud.Count);
+
+          for (int i = 0; i < min; i++)
+          {
+            pointCloud[i].Normal = normals[i];
+          }
+        }
+
+        return pointCloud;
+      }
     }
 
     Rhino.Geometry.Mesh GetMesh(glTFLoader.Schema.MeshPrimitive primitive)
     {
       if (primitive.Extensions != null && primitive.Extensions.TryGetValue(glTFExtensions.KHR_draco_mesh_compression.Tag, out object value))
       {
-        return ConvertDraco(value.ToString());
+        return GetDracoGeometry(value.ToString()) as Rhino.Geometry.Mesh;
       }
       else
       {
@@ -209,7 +216,7 @@ namespace glTF_BinImporter
       }
     }
 
-    Rhino.Geometry.Mesh ConvertDraco(string text)
+    Rhino.Geometry.GeometryBase GetDracoGeometry(string text)
     {
       var khr_draco = Newtonsoft.Json.JsonConvert.DeserializeObject<glTFExtensions.KHR_draco_mesh_compression>(text);
 
@@ -222,7 +229,7 @@ namespace glTF_BinImporter
 
       byte[] buffer = converter.GetBuffer(view.Buffer);
 
-      if(buffer == null)
+      if (buffer == null)
       {
         return null;
       }
@@ -233,7 +240,7 @@ namespace glTF_BinImporter
       byte[] dracoBytes = new byte[length];
       Array.Copy(buffer, offset, dracoBytes, 0, length);
 
-      return Rhino.FileIO.DracoCompression.DecompressByteArray(dracoBytes) as Rhino.Geometry.Mesh;
+      return Rhino.FileIO.DracoCompression.DecompressByteArray(dracoBytes);
     }
 
     Rhino.Geometry.Mesh ConvertPrimtive(glTFLoader.Schema.MeshPrimitive primitive)
