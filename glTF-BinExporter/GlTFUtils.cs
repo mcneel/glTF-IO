@@ -33,10 +33,10 @@ namespace glTF_BinExporter
     {
       return new float[]
       {
-                color.R,
-                color.G,
-                color.B,
-                color.A,
+        color.R,
+        color.G,
+        color.B,
+        color.A,
       };
     }
 
@@ -44,9 +44,9 @@ namespace glTF_BinExporter
     {
       return new float[]
       {
-                (float)point.X,
-                (float)point.Y,
-                (float)point.Z,
+        (float)point.X,
+        (float)point.Y,
+        (float)point.Z,
       };
     }
 
@@ -54,9 +54,9 @@ namespace glTF_BinExporter
     {
       return new float[]
       {
-                vector.X,
-                vector.Y,
-                vector.Z,
+        vector.X,
+        vector.Y,
+        vector.Z,
       };
     }
 
@@ -64,8 +64,8 @@ namespace glTF_BinExporter
     {
       return new float[]
       {
-                point.X,
-                point.Y,
+        point.X,
+        point.Y,
       };
     }
   }
