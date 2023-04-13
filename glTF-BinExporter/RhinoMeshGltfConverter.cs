@@ -131,9 +131,10 @@ namespace glTF_BinExporter
             dracoCompressionObject.Attributes.Add(Constants.VertexColorAttributeTag, currentGeometryInfo.VertexColorAttributePosition);
           }
 
-          primitive.Extensions = new Dictionary<string, object>();
-
-          primitive.Extensions.Add(glTFExtensions.KHR_draco_mesh_compression.Tag, dracoCompressionObject);
+          primitive.Extensions = new Dictionary<string, object>
+          {
+            { glTFExtensions.KHR_draco_mesh_compression.Tag, dracoCompressionObject }
+          };
         }
 
         primitive.Material = materialIndex;
@@ -260,11 +261,15 @@ namespace glTF_BinExporter
       min = new Point3d(Double.PositiveInfinity, Double.PositiveInfinity, Double.PositiveInfinity);
       max = new Point3d(Double.NegativeInfinity, Double.NegativeInfinity, Double.NegativeInfinity);
 
-      List<float> floats = new List<float>(vertices.Count * 3);
-
-      foreach (Point3d vertex in vertices)
+      float[] floats = new float[vertices.Count * 3];
+      
+      for (int i = 0; i < vertices.Count; i++)
       {
-        floats.AddRange(new float[] { (float)vertex.X, (float)vertex.Y, (float)vertex.Z });
+        Point3d vertex = vertices[i];
+
+        floats[i * 3 + 0] = (float)vertex.X;
+        floats[i * 3 + 1] = (float)vertex.Y;
+        floats[i * 3 + 2] = (float)vertex.Z;
 
         min.X = Math.Min(min.X, vertex.X);
         max.X = Math.Max(max.X, vertex.X);
@@ -276,9 +281,11 @@ namespace glTF_BinExporter
         max.Z = Math.Max(max.Z, vertex.Z);
       }
 
-      IEnumerable<byte> bytesEnumerable = floats.SelectMany(value => BitConverter.GetBytes(value));
+      byte[] bytes = new byte[sizeof(float) * floats.Length];
 
-      return bytesEnumerable.ToArray();
+      Buffer.BlockCopy(floats, 0, bytes, 0, bytes.Length);
+
+      return bytes;
     }
 
     private int GetIndicesAccessor(MeshFaceList faces, int verticesCount)
@@ -357,8 +364,8 @@ namespace glTF_BinExporter
     private byte[] GetIndicesBytes(MeshFaceList faces, out int indicesCount)
     {
       List<uint> faceIndices = new List<uint>(faces.Count * 3);
-
-      foreach (Rhino.Geometry.MeshFace face in faces)
+      
+      foreach (MeshFace face in faces)
       {
         if (face.IsTriangle)
         {
@@ -371,11 +378,15 @@ namespace glTF_BinExporter
         }
       }
 
-      IEnumerable<byte> bytesEnumerable = faceIndices.SelectMany(value => BitConverter.GetBytes(value));
+      uint[] indices = faceIndices.ToArray();
 
-      indicesCount = faceIndices.Count;
+      indicesCount = indices.Length;
 
-      return bytesEnumerable.ToArray();
+      byte[] bytes = new byte[indices.Length * sizeof(uint)];
+
+      Buffer.BlockCopy(indices, 0, bytes, 0, bytes.Length);
+
+      return bytes;
     }
 
     private int GetNormalsAccessor(MeshVertexNormalList normals)
@@ -456,11 +467,15 @@ namespace glTF_BinExporter
       max = new Vector3f(float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity);
 
       //Preallocate
-      List<float> floats = new List<float>(normals.Count * 3);
+      float[] floats = new float[normals.Count * 3];
 
-      foreach (Vector3f normal in normals)
+      for(int i = 0; i < normals.Count; i++)
       {
-        floats.AddRange(new float[] { normal.X, normal.Y, normal.Z });
+        Vector3f normal = normals[i];
+
+        floats[i * 3 + 0] = normal.X;
+        floats[i * 3 + 1] = normal.Y;
+        floats[i * 3 + 2] = normal.Z;
 
         min.X = Math.Min(min.X, normal.X);
         max.X = Math.Max(max.X, normal.X);
@@ -472,9 +487,11 @@ namespace glTF_BinExporter
         min.Z = Math.Min(min.Z, normal.Z);
       }
 
-      IEnumerable<byte> bytesEnumerable = floats.SelectMany(value => BitConverter.GetBytes(value));
+      byte[] bytes = new byte[floats.Length * sizeof(float)];
 
-      return bytesEnumerable.ToArray();
+      Buffer.BlockCopy(floats, 0, bytes, 0, bytes.Length);
+
+      return bytes;
     }
 
     int GetTextureCoordinatesAccessor(MeshTextureCoordinateList textureCoordinates)
@@ -554,11 +571,14 @@ namespace glTF_BinExporter
       min = new Point2f(float.PositiveInfinity, float.PositiveInfinity);
       max = new Point2f(float.NegativeInfinity, float.NegativeInfinity);
 
-      List<float> coordinates = new List<float>(textureCoordinates.Count * 2);
+      float[] coordinates = new float[textureCoordinates.Count * 2];
 
-      foreach (Point2f coordinate in textureCoordinates)
+      for(int i = 0; i < coordinates.Length; i++)
       {
-        coordinates.AddRange(new float[] { coordinate.X, coordinate.Y });
+        Point2f coordinate = textureCoordinates[i];
+
+        coordinates[i * 2 + 0] = coordinate.X;
+        coordinates[i * 2 + 1] = coordinate.Y;
 
         min.X = Math.Min(min.X, coordinate.X);
         max.X = Math.Max(max.X, coordinate.X);
@@ -567,9 +587,11 @@ namespace glTF_BinExporter
         max.Y = Math.Max(max.Y, coordinate.Y);
       }
 
-      IEnumerable<byte> bytesEnumerable = coordinates.SelectMany(value => BitConverter.GetBytes(value));
+      byte[] bytes = new byte[coordinates.Length * sizeof(float)];
 
-      return bytesEnumerable.ToArray();
+      Buffer.BlockCopy(coordinates, 0, bytes, 0, bytes.Length);
+
+      return bytes;
     }
 
     private int GetVertexColorAccessor(MeshVertexColorList vertexColors)
@@ -652,13 +674,16 @@ namespace glTF_BinExporter
       float[] minArr = new float[] { float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity, float.PositiveInfinity };
       float[] maxArr = new float[] { float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity, float.NegativeInfinity };
 
-      List<float> colors = new List<float>(vertexColors.Count * 4);
+      float[] colors = new float[vertexColors.Count * 4];
 
       for (int i = 0; i < vertexColors.Count; i++)
       {
         Color4f color = new Color4f(vertexColors[i]);
 
-        colors.AddRange(color.ToFloatArray());
+        colors[i * 4 + 0] = color.R;
+        colors[i * 4 + 1] = color.G;
+        colors[i * 4 + 2] = color.B;
+        colors[i * 4 + 3] = color.A;
 
         minArr[0] = Math.Min(minArr[0], color.R);
         minArr[1] = Math.Min(minArr[1], color.G);
@@ -674,27 +699,25 @@ namespace glTF_BinExporter
       min = new Color4f(minArr[0], minArr[1], minArr[2], minArr[3]);
       max = new Color4f(maxArr[0], maxArr[1], maxArr[2], maxArr[3]);
 
-      IEnumerable<byte> bytesEnumerable = colors.SelectMany(value => BitConverter.GetBytes(value));
+      byte[] bytes = new byte[colors.Length * sizeof(float)];
 
-      return bytesEnumerable.ToArray();
+      Buffer.BlockCopy(colors, 0, bytes, 0, bytes.Length);
+
+      return bytes;
     }
 
     public DracoGeometryInfo AddDracoGeometry(DracoCompression dracoCompression)
     {
       var dracoGeoInfo = new DracoGeometryInfo();
 
-      string fileName = Path.GetTempFileName();
-
       try
       {
-        dracoCompression.Write(fileName);
-
         dracoGeoInfo.VertexAttributePosition = dracoCompression.VertexAttributePosition;
         dracoGeoInfo.NormalAttributePosition = dracoCompression.NormalAttributePosition;
         dracoGeoInfo.TextureCoordinatesAttributePosition = dracoCompression.TextureCoordinatesAttributePosition;
         dracoGeoInfo.VertexColorAttributePosition = dracoCompression.VertexColorAttributePosition;
 
-        byte[] dracoBytes = GetDracoBytes(fileName);
+        byte[] dracoBytes = dracoCompression.ToByteArray();
 
         WriteDracoBytes(dracoBytes, out dracoGeoInfo.BufferIndex, out dracoGeoInfo.ByteOffset, out dracoGeoInfo.ByteLength);
 
@@ -709,7 +732,7 @@ namespace glTF_BinExporter
 
         dracoGeoInfo.ByteLength = dracoBytes.Length;
 
-        var geo = DracoCompression.DecompressFile(fileName);
+        var geo = DracoCompression.DecompressByteArray(dracoBytes);
         if (geo.ObjectType == Rhino.DocObjects.ObjectType.Mesh)
         {
           var mesh = (Rhino.Geometry.Mesh)geo;
@@ -747,10 +770,7 @@ namespace glTF_BinExporter
         geo.Dispose();
         dracoCompression.Dispose();
       }
-      finally
-      {
-        File.Delete(fileName);
-      }
+      catch(Exception) {  }
 
       return dracoGeoInfo;
     }
