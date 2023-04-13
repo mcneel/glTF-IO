@@ -131,9 +131,10 @@ namespace glTF_BinExporter
             dracoCompressionObject.Attributes.Add(Constants.VertexColorAttributeTag, currentGeometryInfo.VertexColorAttributePosition);
           }
 
-          primitive.Extensions = new Dictionary<string, object>();
-
-          primitive.Extensions.Add(glTFExtensions.KHR_draco_mesh_compression.Tag, dracoCompressionObject);
+          primitive.Extensions = new Dictionary<string, object>
+          {
+            { glTFExtensions.KHR_draco_mesh_compression.Tag, dracoCompressionObject }
+          };
         }
 
         primitive.Material = materialIndex;
@@ -709,18 +710,14 @@ namespace glTF_BinExporter
     {
       var dracoGeoInfo = new DracoGeometryInfo();
 
-      string fileName = Path.GetTempFileName();
-
       try
       {
-        dracoCompression.Write(fileName);
-
         dracoGeoInfo.VertexAttributePosition = dracoCompression.VertexAttributePosition;
         dracoGeoInfo.NormalAttributePosition = dracoCompression.NormalAttributePosition;
         dracoGeoInfo.TextureCoordinatesAttributePosition = dracoCompression.TextureCoordinatesAttributePosition;
         dracoGeoInfo.VertexColorAttributePosition = dracoCompression.VertexColorAttributePosition;
 
-        byte[] dracoBytes = GetDracoBytes(fileName);
+        byte[] dracoBytes = dracoCompression.ToByteArray();
 
         WriteDracoBytes(dracoBytes, out dracoGeoInfo.BufferIndex, out dracoGeoInfo.ByteOffset, out dracoGeoInfo.ByteLength);
 
@@ -735,7 +732,7 @@ namespace glTF_BinExporter
 
         dracoGeoInfo.ByteLength = dracoBytes.Length;
 
-        var geo = DracoCompression.DecompressFile(fileName);
+        var geo = DracoCompression.DecompressByteArray(dracoBytes);
         if (geo.ObjectType == Rhino.DocObjects.ObjectType.Mesh)
         {
           var mesh = (Rhino.Geometry.Mesh)geo;
@@ -773,10 +770,7 @@ namespace glTF_BinExporter
         geo.Dispose();
         dracoCompression.Dispose();
       }
-      finally
-      {
-        File.Delete(fileName);
-      }
+      catch(Exception) {  }
 
       return dracoGeoInfo;
     }

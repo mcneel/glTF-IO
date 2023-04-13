@@ -1,3 +1,4 @@
+using Rhino.FileIO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -23,6 +24,7 @@ namespace glTF_BinExporter
     private gltfSchemaDummy dummy = null;
     private List<byte> binaryBuffer = null;
 
+
     public int AddPointCloud()
     {
       Rhino.Geometry.PointCloud pointCloud = rhinoObject.Geometry.Duplicate() as Rhino.Geometry.PointCloud;
@@ -37,9 +39,9 @@ namespace glTF_BinExporter
         pointCloud.Transform(Constants.ZtoYUp);
       }
 
-      Rhino.Geometry.Point3d[] points = pointCloud.GetPoints();
-
-      int vertexAccessor = GetVertexAccessor(points);
+      int? vertexAccessorIdx = null;
+      int? normalAccessorIdx = null;
+      int? vertexColorAccessorIdx = null;
 
       glTFLoader.Schema.MeshPrimitive primitive = new glTFLoader.Schema.MeshPrimitive()
       {
@@ -47,24 +49,51 @@ namespace glTF_BinExporter
         Attributes = new Dictionary<string, int>(),
       };
 
-      primitive.Attributes.Add(Constants.PositionAttributeTag, vertexAccessor);
-
-      if (pointCloud.ContainsColors)
+      if (options.UseDracoCompression)
       {
-        System.Drawing.Color[] colors = pointCloud.GetColors();
+        glTFExtensions.KHR_draco_mesh_compression compression = DoDracoCompression(pointCloud, out vertexAccessorIdx, out normalAccessorIdx, out vertexColorAccessorIdx);
 
-        int colorsAccessorIdx = GetVertexColorAccessor(colors);
+        primitive.Extensions = new Dictionary<string, object>
+        {
+          { glTFExtensions.KHR_draco_mesh_compression.Tag, compression }
+        };
+      }
+      else
+      {
+        Rhino.Geometry.Point3d[] points = pointCloud.GetPoints();
 
-        primitive.Attributes.Add(Constants.VertexColorAttributeTag, colorsAccessorIdx);
+        vertexAccessorIdx = GetVertexAccessor(points);
+
+        if (ExportNormals(pointCloud))
+        {
+          Rhino.Geometry.Vector3d[] normals = pointCloud.GetNormals();
+
+          normalAccessorIdx = GetNormalsAccessor(normals);
+        }
+
+        if (ExportVertexColors(pointCloud))
+        {
+          System.Drawing.Color[] colors = pointCloud.GetColors();
+
+          vertexColorAccessorIdx = GetVertexColorAccessor(colors);
+        }
       }
 
-      if (pointCloud.ContainsNormals)
+      if (vertexAccessorIdx == null)
       {
-        Rhino.Geometry.Vector3d[] normals = pointCloud.GetNormals();
+        return -1;
+      }
 
-        int normalsAccessorIdx = GetNormalsAccessor(normals);
+      primitive.Attributes.Add(Constants.PositionAttributeTag, vertexAccessorIdx.Value);
 
-        primitive.Attributes.Add(Constants.NormalAttributeTag, normalsAccessorIdx);
+      if(normalAccessorIdx != null)
+      {
+        primitive.Attributes.Add(Constants.NormalAttributeTag, normalAccessorIdx.Value);
+      }
+
+      if(vertexColorAccessorIdx != null)
+      {
+        primitive.Attributes.Add(Constants.VertexColorAttributeTag, vertexColorAccessorIdx.Value);
       }
 
       glTFLoader.Schema.Mesh mesh = new glTFLoader.Schema.Mesh()
@@ -356,5 +385,178 @@ namespace glTF_BinExporter
       return bytesEnumerable.ToArray();
     }
 
+    glTFExtensions.KHR_draco_mesh_compression DoDracoCompression(
+      Rhino.Geometry.PointCloud pointCloud,
+      out int? vertexAccessorIdx,
+      out int? normalsAccessorIdx,
+      out int? vertexColorAccessorIdx)
+    {
+      vertexAccessorIdx = null;
+      normalsAccessorIdx = null;
+      vertexColorAccessorIdx = null;
+
+      bool exportNormals = ExportNormals(pointCloud);
+      bool exportVertexColors = ExportVertexColors(pointCloud);
+
+      DracoCompression dracoCompression = DracoCompression.Compress(
+        pointCloud,
+        new DracoCompressionOptions()
+      {
+          VertexColorFormat = DracoColorFormat.RGBA,
+          CompressionLevel = options.DracoCompressionLevel,
+          IncludeNormals = exportNormals,
+          IncludeVertexColors = exportVertexColors,
+          IncludeTextureCoordinates = false,
+          PositionQuantizationBits = options.DracoQuantizationBitsPosition,
+          NormalQuantizationBits = options.DracoQuantizationBitsNormal,
+          TextureCoordintateQuantizationBits = options.DracoQuantizationBitsTexture
+      });
+
+      if(dracoCompression == null)
+      {
+        return null;
+      }
+
+      byte[] dracoBytes = dracoCompression.ToByteArray();
+
+      int bufferIndex;
+      int byteOffset;
+
+      if (binary)
+      {
+        bufferIndex = 0;
+        byteOffset = binaryBuffer.Count;
+        binaryBuffer.AddRange(dracoBytes);
+      }
+      else
+      {
+        glTFLoader.Schema.Buffer buffer = new glTFLoader.Schema.Buffer()
+        {
+          ByteLength = dracoBytes.Length,
+          Uri = Constants.TextBufferHeader + Convert.ToBase64String(dracoBytes),
+        };
+
+        bufferIndex = dummy.Buffers.AddAndReturnIndex(buffer);
+        byteOffset = 0;
+      }
+
+      glTFLoader.Schema.BufferView dracoBufferView = new glTFLoader.Schema.BufferView()
+      {
+        Buffer = bufferIndex,
+        ByteOffset = byteOffset,
+        ByteLength = dracoBytes.Length,
+      };
+
+      Rhino.Geometry.Point3d vertexMin = new Rhino.Geometry.Point3d(double.MaxValue, double.MaxValue, double.MaxValue);
+      Rhino.Geometry.Point3d vertexMax = new Rhino.Geometry.Point3d(double.MinValue, double.MinValue, double.MinValue);
+
+      Rhino.Geometry.Vector3f normalMin = new Rhino.Geometry.Vector3f(float.MaxValue, float.MaxValue, float.MaxValue);
+      Rhino.Geometry.Vector3f normalMax = new Rhino.Geometry.Vector3f(float.MinValue, float.MinValue, float.MinValue);
+
+      float[] vertexColorMin = new float[] { float.MaxValue, float.MaxValue, float.MaxValue, float.MaxValue };
+      float[] vertexColorMax = new float[] { float.MinValue, float.MinValue, float.MinValue, float.MinValue };
+
+      for (int i = 0; i < pointCloud.Count; i++)
+      {
+        Rhino.Geometry.PointCloudItem p = pointCloud[i];
+
+        vertexMin.X = Math.Min(p.X, vertexMin.X);
+        vertexMin.Y = Math.Min(p.Y, vertexMin.Y);
+        vertexMin.Z = Math.Min(p.Z, vertexMin.Z);
+
+        vertexMax.X = Math.Max(p.X, vertexMax.X);
+        vertexMax.Y = Math.Max(p.Y, vertexMax.Y);
+        vertexMax.Z = Math.Max(p.Z, vertexMax.Z);
+
+        normalMin.X = Math.Min((float)p.Normal.X, normalMin.X);
+        normalMin.Y = Math.Min((float)p.Normal.Y, normalMin.Y);
+        normalMin.Z = Math.Min((float)p.Normal.Z, normalMin.Z);
+
+        normalMax.X = Math.Max((float)p.Normal.X, normalMax.X);
+        normalMax.Y = Math.Max((float)p.Normal.Y, normalMax.Y);
+        normalMax.Z = Math.Max((float)p.Normal.Z, normalMax.Z);
+
+        Rhino.Display.Color4f col = new Rhino.Display.Color4f(p.Color); 
+
+        vertexColorMin[0] = Math.Min(col.R, vertexColorMin[0]);
+        vertexColorMin[1] = Math.Min(col.G, vertexColorMin[1]);
+        vertexColorMin[2] = Math.Min(col.B, vertexColorMin[2]);
+        vertexColorMin[3] = Math.Min(col.A, vertexColorMin[3]);
+
+        vertexColorMax[0] = Math.Max(col.R, vertexColorMax[0]);
+        vertexColorMax[1] = Math.Max(col.G, vertexColorMax[1]);
+        vertexColorMax[2] = Math.Max(col.B, vertexColorMax[2]);
+        vertexColorMax[3] = Math.Max(col.A, vertexColorMax[3]);
+      }
+
+      int dracoBufferViewIndex = dummy.BufferViews.AddAndReturnIndex(dracoBufferView);
+
+      glTFExtensions.KHR_draco_mesh_compression extension = new glTFExtensions.KHR_draco_mesh_compression();
+
+      extension.BufferView = dracoBufferViewIndex;
+      extension.Attributes.Add(Constants.PositionAttributeTag, dracoCompression.VertexAttributePosition);
+
+      glTFLoader.Schema.Accessor vertexAccessor = new glTFLoader.Schema.Accessor()
+      {
+        BufferView = null,
+        Count = pointCloud.Count,
+        Min = vertexMin.ToFloatArray(),
+        Max = vertexMax.ToFloatArray(),
+        Type = glTFLoader.Schema.Accessor.TypeEnum.VEC3,
+        ComponentType = glTFLoader.Schema.Accessor.ComponentTypeEnum.FLOAT,
+        ByteOffset = 0,
+      };
+
+      vertexAccessorIdx = dummy.Accessors.AddAndReturnIndex(vertexAccessor);
+
+      if(exportNormals)
+      {
+        extension.Attributes.Add(Constants.NormalAttributeTag, dracoCompression.NormalAttributePosition);
+
+        glTFLoader.Schema.Accessor normalsAccessor = new glTFLoader.Schema.Accessor()
+        {
+          BufferView = null,
+          Count = pointCloud.Count,
+          Min = normalMin.ToFloatArray(),
+          Max = normalMax.ToFloatArray(),
+          Type = glTFLoader.Schema.Accessor.TypeEnum.VEC3,
+          ComponentType = glTFLoader.Schema.Accessor.ComponentTypeEnum.FLOAT,
+          ByteOffset = 0,
+        };
+
+        normalsAccessorIdx = dummy.Accessors.AddAndReturnIndex(normalsAccessor);
+      }
+
+      if (exportVertexColors)
+      {
+        extension.Attributes.Add(Constants.VertexColorAttributeTag, dracoCompression.VertexColorAttributePosition);
+
+        glTFLoader.Schema.Accessor vertexColorAccessor = new glTFLoader.Schema.Accessor()
+        {
+          BufferView = null,
+          Count = pointCloud.Count,
+          Min = vertexColorMin,
+          Max = vertexColorMax,
+          Type = glTFLoader.Schema.Accessor.TypeEnum.VEC4,
+          ComponentType = glTFLoader.Schema.Accessor.ComponentTypeEnum.UNSIGNED_BYTE,
+          Normalized = true,
+          ByteOffset = 0,
+        };
+
+        vertexColorAccessorIdx = dummy.Accessors.AddAndReturnIndex(vertexColorAccessor);
+      }
+
+      return extension;
+    }
+
+    private bool ExportNormals(Rhino.Geometry.PointCloud pointCloud)
+    {
+      return options.ExportVertexNormals && pointCloud.ContainsNormals;
+    }
+
+    private bool ExportVertexColors(Rhino.Geometry.PointCloud pointCloud)
+    {
+      return options.ExportVertexColors && pointCloud.ContainsColors;
+    }
   }
 }
