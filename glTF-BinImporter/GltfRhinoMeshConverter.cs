@@ -164,7 +164,22 @@ namespace glTF_BinImporter
     {
       if(primitive.Extensions != null && primitive.Extensions.TryGetValue(glTFExtensions.KHR_draco_mesh_compression.Tag, out object value))
       {
-        return GetDracoGeometry(value.ToString()) as Rhino.Geometry.PointCloud;
+        Rhino.Geometry.PointCloud pc = GetDracoGeometry(value.ToString()) as Rhino.Geometry.PointCloud;
+
+        if(pc != null && pc.ContainsColors)
+        {
+          //glTF is RGBA and Rhinos draco decompresses as ARGB so we need to correct the colors
+          foreach(Rhino.Geometry.PointCloudItem item in pc)
+          {
+            System.Drawing.Color color = item.Color;
+
+            System.Drawing.Color colorCorrected = System.Drawing.Color.FromArgb(color.B, color.A, color.R, color.G);
+
+            item.Color = colorCorrected;
+          }
+        }
+
+        return pc;
       }
       else
       {
