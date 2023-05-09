@@ -573,7 +573,7 @@ namespace glTF_BinExporter
 
       float[] coordinates = new float[textureCoordinates.Count * 2];
 
-      for(int i = 0; i < coordinates.Length; i++)
+      for(int i = 0; i < textureCoordinates.Count; i++)
       {
         Point2f coordinate = textureCoordinates[i];
 
