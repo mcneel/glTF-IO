@@ -28,7 +28,7 @@ namespace glTF_BinExporter
             this.binary = binary;
             this.dummy = dummy;
             this.binaryBuffer = binaryBuffer;
-            this.rhinoMaterial = renderMaterial.SimulatedMaterial(RenderTexture.TextureGeneration.Allow);
+            this.rhinoMaterial = renderMaterial.ToMaterial(RenderTexture.TextureGeneration.Allow);
             this.renderMaterial = renderMaterial;
             this.workflow = workflow;
         }
