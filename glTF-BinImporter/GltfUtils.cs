@@ -69,5 +69,16 @@ namespace glTF_BinImporter
       return color;
     }
 
+    /// <summary>
+    /// Rhinos mapping channels are 1 based for indexing
+    /// glTF uses zero based indexing
+    /// </summary>
+    /// <param name="index"></param>
+    /// <returns></returns>
+    public static int GltfTexCoordIndexToRhinoMappingChannel(int index)
+    {
+      return index + 1;
+    }
+
   }
 }

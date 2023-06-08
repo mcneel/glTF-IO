@@ -11,6 +11,7 @@ namespace glTF_BinImporter
     public Rhino.Geometry.Mesh RhinoMesh;
     public int? MaterialIndex;
     public string Name;
+    public Dictionary<int, Rhino.Geometry.Point2f[]> TextureMappings;
   }
 
   struct GltfPointCloudHolder
@@ -33,13 +34,14 @@ namespace glTF_BinImporter
     private List<GltfMeshMaterialPair> meshMaterialPairs = new List<GltfMeshMaterialPair>();
     private List<GltfPointCloudHolder> pointCloudHolders = new List<GltfPointCloudHolder>();
 
-    public void AddPrimitive(Rhino.Geometry.Mesh rhinoMesh, int? materialIndex, string name)
+    public void AddPrimitive(Rhino.Geometry.Mesh rhinoMesh, int? materialIndex, string name, Dictionary<int, Rhino.Geometry.Point2f[]> textureMappings)
     {
       meshMaterialPairs.Add(new GltfMeshMaterialPair()
       {
         RhinoMesh = rhinoMesh,
         MaterialIndex = materialIndex,
         Name = name,
+        TextureMappings = textureMappings,
       });
     }
 
@@ -58,9 +60,13 @@ namespace glTF_BinImporter
       {
         Rhino.Geometry.Mesh rhinoMesh = pair.RhinoMesh.DuplicateMesh();
 
-        rhinoMesh.Transform(GltfUtils.YupToZup * transform);
+        if(pair.TextureMappings != null && pair.TextureMappings.TryGetValue(0, out Rhino.Geometry.Point2f[] coordinates))
+        {
+          rhinoMesh.TextureCoordinates.SetTextureCoordinates(coordinates);
+          rhinoMesh.SetSurfaceParametersFromTextureCoordinates();
+        }
 
-        rhinoMesh.TextureCoordinates.ReverseTextureCoordinates(1);
+        rhinoMesh.Transform(GltfUtils.YupToZup * transform);
 
         Guid objectId = doc.Objects.AddMesh(rhinoMesh);
 
@@ -76,6 +82,32 @@ namespace glTF_BinImporter
 
           rhinoObject.CommitChanges();
         }
+
+        rhinoObject = doc.Objects.Find(objectId);
+
+        //For some reason setting this at the same time as the material and name does not work
+        if (rhinoObject != null && pair.TextureMappings != null)
+        {
+          foreach (var mapping in pair.TextureMappings)
+          {
+            if (mapping.Key == 0)
+            {
+              Rhino.Render.TextureMapping surfaceMapping = Rhino.Render.TextureMapping.CreateSurfaceParameterMapping();
+              rhinoObject.SetTextureMapping(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(mapping.Key), surfaceMapping);
+            }
+            else
+            {
+              Rhino.Geometry.Mesh mappingMesh = pair.RhinoMesh.DuplicateMesh();
+              mappingMesh.TextureCoordinates.SetTextureCoordinates(mapping.Value);
+
+              Rhino.Render.TextureMapping meshMapping = Rhino.Render.TextureMapping.CreateCustomMeshMapping(mappingMesh);
+              rhinoObject.SetTextureMapping(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(mapping.Key), meshMapping);
+            }
+          }
+
+          rhinoObject.CommitChanges();
+        }
+
       }
 
       foreach (GltfPointCloudHolder holder in pointCloudHolders)
@@ -104,7 +136,7 @@ namespace glTF_BinImporter
   {
     public const string PositionAttributeTag = "POSITION";
     public const string NormalAttributeTag = "NORMAL";
-    public const string TexCoord0AttributeTag = "TEXCOORD_0";
+    public const string TexCoordAttributeTagStem = "TEXCOORD_";
     public const string VertexColorAttributeTag = "COLOR_0";
 
     public GltfRhinoMeshConverter(glTFLoader.Schema.Mesh mesh, GltfRhinoConverter converter, Rhino.RhinoDoc doc)
@@ -137,7 +169,7 @@ namespace glTF_BinImporter
         }
         else
         {
-          Rhino.Geometry.Mesh rhinoMesh = GetMesh(primitive);
+          Rhino.Geometry.Mesh rhinoMesh = GetMesh(primitive, out Dictionary<int, Rhino.Geometry.Point2f[]> textureMappings);
 
           if(rhinoMesh == null)
           {
@@ -153,7 +185,7 @@ namespace glTF_BinImporter
             Rhino.RhinoApp.WriteLine(log);
           }
 
-          meshHolder.AddPrimitive(rhinoMesh, primitive.Material, mesh.Name);
+          meshHolder.AddPrimitive(rhinoMesh, primitive.Material, mesh.Name, textureMappings);
         }
       }
 
@@ -219,15 +251,24 @@ namespace glTF_BinImporter
       }
     }
 
-    Rhino.Geometry.Mesh GetMesh(glTFLoader.Schema.MeshPrimitive primitive)
+    Rhino.Geometry.Mesh GetMesh(glTFLoader.Schema.MeshPrimitive primitive, out Dictionary<int, Rhino.Geometry.Point2f[]> textureMappings)
     {
       if (primitive.Extensions != null && primitive.Extensions.TryGetValue(glTFExtensions.KHR_draco_mesh_compression.Tag, out object value))
       {
-        return GetDracoGeometry(value.ToString()) as Rhino.Geometry.Mesh;
+        textureMappings = null;
+        Rhino.Geometry.Mesh rc = GetDracoGeometry(value.ToString()) as Rhino.Geometry.Mesh;
+
+        if(rc != null)
+        {
+          //Needs reversed
+          rc.TextureCoordinates.ReverseTextureCoordinates(1);
+        }
+
+        return rc;
       }
       else
       {
-        return ConvertPrimtive(primitive);
+        return ConvertPrimtive(primitive, out textureMappings);
       }
     }
 
@@ -258,12 +299,13 @@ namespace glTF_BinImporter
       return Rhino.FileIO.DracoCompression.DecompressByteArray(dracoBytes);
     }
 
-    Rhino.Geometry.Mesh ConvertPrimtive(glTFLoader.Schema.MeshPrimitive primitive)
+    Rhino.Geometry.Mesh ConvertPrimtive(glTFLoader.Schema.MeshPrimitive primitive, out Dictionary<int, Rhino.Geometry.Point2f[]> textureMappings)
     {
       Rhino.Geometry.Mesh rhinoMesh = new Rhino.Geometry.Mesh();
 
       if(!AttemptConvertVerticesAndIndices(primitive, rhinoMesh)) //Only part that is required
       {
+        textureMappings = null;
         return null;
       }
 
@@ -272,7 +314,7 @@ namespace glTF_BinImporter
         rhinoMesh.RebuildNormals();
       }
 
-      AttemptConvertTextureCoordinates(primitive, rhinoMesh);
+      textureMappings = AttemptConvertTextureCoordinates(primitive, rhinoMesh);
 
       AttemptConvertVertexColors(primitive, rhinoMesh);
 
@@ -585,85 +627,111 @@ namespace glTF_BinImporter
       return true;
     }
 
-    private bool AttemptConvertTextureCoordinates(glTFLoader.Schema.MeshPrimitive primitive, Rhino.Geometry.Mesh rhinoMesh)
+    private Dictionary<int, Rhino.Geometry.Point2f[]> AttemptConvertTextureCoordinates(glTFLoader.Schema.MeshPrimitive primitive, Rhino.Geometry.Mesh rhinoMesh)
     {
-      if (!primitive.Attributes.TryGetValue(TexCoord0AttributeTag, out int texCoordsAttributeAccessorIndex))
+      Dictionary<int, Rhino.Geometry.Point2f[]> rc = new Dictionary<int, Rhino.Geometry.Point2f[]>();
+
+      int iTexCoordIndex = 0;
+      while(primitive.Attributes.TryGetValue(TexCoordAttributeTagStem + iTexCoordIndex.ToString(), out int texCoordsAttributeAccessorIndex))
       {
-        return false;
-      }
+        glTFLoader.Schema.Accessor texCoordsAccessor = converter.GetAccessor(texCoordsAttributeAccessorIndex);
 
-      glTFLoader.Schema.Accessor texCoordsAccessor = converter.GetAccessor(texCoordsAttributeAccessorIndex);
-
-      if(texCoordsAccessor == null)
-      {
-        return false;
-      }
-
-      glTFLoader.Schema.BufferView texCoordsBufferView = converter.GetBufferView(texCoordsAccessor.BufferView);
-
-      if (texCoordsBufferView == null)
-      {
-        return false;
-      }
-
-      byte[] texCoordsBuffer = converter.GetBuffer(texCoordsBufferView.Buffer);
-
-      if(texCoordsBuffer == null)
-      {
-        return false;
-      }
-
-      int texCoordsOffset = texCoordsAccessor.ByteOffset + texCoordsBufferView.ByteOffset;
-
-      int texCoordsStride = texCoordsBufferView.ByteStride.HasValue ? texCoordsBufferView.ByteStride.Value : TotalStride(texCoordsAccessor.ComponentType, texCoordsAccessor.Type);
-
-      int texCoordsComponentCount = ComponentsCount(texCoordsAccessor.Type);
-
-      int texCoordsComponentSize = ComponentSize(texCoordsAccessor.ComponentType);
-
-      List<float> texCoords = new List<float>();
-
-      for (int i = 0; i < texCoordsAccessor.Count; i++)
-      {
-        int texCoordsIndex = texCoordsOffset + i * texCoordsStride;
-
-        for (int j = 0; j < texCoordsComponentCount; j++)
+        if (texCoordsAccessor == null)
         {
-          int location = texCoordsIndex + j * texCoordsComponentSize;
-
-          float coordinate = 0.0f;
-
-          if (texCoordsAccessor.ComponentType == glTFLoader.Schema.Accessor.ComponentTypeEnum.FLOAT)
-          {
-            coordinate = BitConverter.ToSingle(texCoordsBuffer, location);
-          }
-          else if (texCoordsAccessor.ComponentType == glTFLoader.Schema.Accessor.ComponentTypeEnum.UNSIGNED_BYTE)
-          {
-            byte byteVal = texCoordsBuffer[location];
-            coordinate = (float)byteVal / (float)byte.MaxValue;
-          }
-          else if (texCoordsAccessor.ComponentType == glTFLoader.Schema.Accessor.ComponentTypeEnum.UNSIGNED_SHORT)
-          {
-            ushort shortValue = BitConverter.ToUInt16(texCoordsBuffer, location);
-            coordinate = (float)shortValue / (float)ushort.MaxValue;
-          }
-
-          texCoords.Add(coordinate);
+          return null;
         }
+
+        glTFLoader.Schema.BufferView texCoordsBufferView = converter.GetBufferView(texCoordsAccessor.BufferView);
+
+        if (texCoordsBufferView == null)
+        {
+          return null;
+        }
+
+        byte[] texCoordsBuffer = converter.GetBuffer(texCoordsBufferView.Buffer);
+
+        if (texCoordsBuffer == null)
+        {
+          return null;
+        }
+
+        int texCoordsOffset = texCoordsAccessor.ByteOffset + texCoordsBufferView.ByteOffset;
+
+        int texCoordsStride = texCoordsBufferView.ByteStride.HasValue ? texCoordsBufferView.ByteStride.Value : TotalStride(texCoordsAccessor.ComponentType, texCoordsAccessor.Type);
+
+        int texCoordsComponentCount = ComponentsCount(texCoordsAccessor.Type);
+
+        int texCoordsComponentSize = ComponentSize(texCoordsAccessor.ComponentType);
+
+        List<float> texCoords = new List<float>();
+
+        for (int i = 0; i < texCoordsAccessor.Count; i++)
+        {
+          int texCoordsIndex = texCoordsOffset + i * texCoordsStride;
+
+          for (int j = 0; j < texCoordsComponentCount; j++)
+          {
+            int location = texCoordsIndex + j * texCoordsComponentSize;
+
+            float coordinate = 0.0f;
+
+            if (texCoordsAccessor.ComponentType == glTFLoader.Schema.Accessor.ComponentTypeEnum.FLOAT)
+            {
+              coordinate = BitConverter.ToSingle(texCoordsBuffer, location);
+            }
+            else if (texCoordsAccessor.ComponentType == glTFLoader.Schema.Accessor.ComponentTypeEnum.UNSIGNED_BYTE)
+            {
+              byte byteVal = texCoordsBuffer[location];
+              coordinate = (float)byteVal / (float)byte.MaxValue;
+            }
+            else if (texCoordsAccessor.ComponentType == glTFLoader.Schema.Accessor.ComponentTypeEnum.UNSIGNED_SHORT)
+            {
+              ushort shortValue = BitConverter.ToUInt16(texCoordsBuffer, location);
+              coordinate = (float)shortValue / (float)ushort.MaxValue;
+            }
+
+            texCoords.Add(coordinate);
+          }
+        }
+
+        int countCoordinates = texCoords.Count / 2;
+
+        Rhino.Geometry.Point2f[] textureCoordinates = new Rhino.Geometry.Point2f[countCoordinates];
+
+        float min = float.MaxValue;
+        float max = float.MinValue;
+
+        for (int i = 0; i < countCoordinates; i++)
+        {
+          int index = i * 2;
+
+          Rhino.Geometry.Point2f coordinate = new Rhino.Geometry.Point2f(texCoords[index + 0], texCoords[index + 1]);
+
+          textureCoordinates[i] = coordinate;
+
+          min = Math.Min(coordinate.Y, min);
+          max = Math.Max(coordinate.Y, max);
+        }
+
+        //Similar to ON_Mesh::ReverseTextureCoordinates
+        //Needs done here to the texture coordinates are properly reversed before setting the mappings
+        Rhino.Geometry.Interval interval = new Rhino.Geometry.Interval(min, max);
+        interval.Swap();
+
+        Parallel.For(0, countCoordinates, i =>
+        {
+          Rhino.Geometry.Point2f coordinate = textureCoordinates[i];
+          double s = 1.0 - interval.NormalizedParameterAt(coordinate.Y);
+          coordinate.Y = (float)interval.ParameterAt(s);
+          textureCoordinates[i] = coordinate;
+        });
+
+        rc.Add(iTexCoordIndex, textureCoordinates);
+
+        iTexCoordIndex++;
       }
 
-      int coordinates = texCoords.Count / 2;
-
-      for (int i = 0; i < coordinates; i++)
-      {
-        int index = i * 2;
-
-        Rhino.Geometry.Point2f coordinate = new Rhino.Geometry.Point2f(texCoords[index + 0], texCoords[index + 1]);
-
-        rhinoMesh.TextureCoordinates.Add(coordinate);
-      }
-
-      return true;
+      return rc;
     }
 
     private bool AttemptConvertVertexColors(glTFLoader.Schema.MeshPrimitive primitive, Rhino.Geometry.Mesh rhinoMesh)
