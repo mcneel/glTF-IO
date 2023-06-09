@@ -68,7 +68,7 @@ namespace glTF_BinImporter
 
         rhinoMesh.Transform(GltfUtils.YupToZup * transform);
 
-        Guid objectId = doc.Objects.AddMesh(rhinoMesh);
+        Guid objectId = doc.Objects.AddMesh(rhinoMesh, null, null, false, false);
 
         Rhino.DocObjects.RhinoObject rhinoObject = doc.Objects.Find(objectId);
 
