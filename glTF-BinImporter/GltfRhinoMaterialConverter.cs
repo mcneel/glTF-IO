@@ -38,9 +38,12 @@ namespace glTF_BinImporter
           int index = material.PbrMetallicRoughness.BaseColorTexture.Index;
 
           RenderTexture texture = converter.GetRenderTexture(index, baseColor);
+          texture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.BaseColorTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
           pbr.SetChild(texture, Rhino.Render.ParameterNames.PhysicallyBased.BaseColor);
           pbr.SetChildSlotOn(Rhino.Render.ParameterNames.PhysicallyBased.BaseColor, true, RenderContent.ChangeContexts.Program);
+
+          pbr.SetParameter("alpha-transparency", true);
         }
 
         baseColor = GltfUtils.UnapplyGamma(baseColor);
@@ -56,6 +59,9 @@ namespace glTF_BinImporter
           int index = material.PbrMetallicRoughness.MetallicRoughnessTexture.Index;
 
           RhinoGltfMetallicRoughnessConverter metallicRoughness = converter.GetMetallicRoughnessTexture(index);
+
+          metallicRoughness.MetallicTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
+          metallicRoughness.RoughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
           pbr.SetChild(metallicRoughness.MetallicTexture, PhysicallyBased.Metallic);
           pbr.SetChildSlotOn(PhysicallyBased.Metallic, true, RenderContent.ChangeContexts.Program);
@@ -82,6 +88,7 @@ namespace glTF_BinImporter
       if (material.EmissiveTexture != null)
       {
         RenderTexture emissiveTexture = converter.GetRenderTexture(material.EmissiveTexture.Index);
+        emissiveTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.EmissiveTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
         pbr.SetChild(emissiveTexture, PhysicallyBased.Emission);
         pbr.SetChildSlotOn(PhysicallyBased.Emission, true, RenderContent.ChangeContexts.Program);
@@ -90,6 +97,7 @@ namespace glTF_BinImporter
       if (material.OcclusionTexture != null)
       {
         RenderTexture occlusionTexture = converter.GetRenderTexture(material.OcclusionTexture.Index);
+        occlusionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.OcclusionTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
         pbr.SetChild(occlusionTexture, PhysicallyBased.AmbientOcclusion);
         pbr.SetChildSlotOn(PhysicallyBased.AmbientOcclusion, true, RenderContent.ChangeContexts.Program);
@@ -100,6 +108,7 @@ namespace glTF_BinImporter
       if (material.NormalTexture != null)
       {
         RenderTexture normalTexture = converter.GetRenderTexture(material.NormalTexture.Index);
+        normalTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.NormalTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
         pbr.SetChild(normalTexture, PhysicallyBased.Bump);
         pbr.SetChildSlotOn(PhysicallyBased.Bump, true, RenderContent.ChangeContexts.Program);
@@ -167,6 +176,7 @@ namespace glTF_BinImporter
         if (clearcoat.ClearcoatTexture != null)
         {
           RenderTexture clearcoatTexture = converter.GetRenderTexture(clearcoat.ClearcoatTexture.Index);
+          clearcoatTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
           pbr.SetChild(clearcoatTexture, PhysicallyBased.Clearcoat);
           pbr.SetChildSlotOn(PhysicallyBased.Clearcoat, true, RenderContent.ChangeContexts.Program);
@@ -180,6 +190,7 @@ namespace glTF_BinImporter
         if (clearcoat.ClearcoatRoughnessTexture != null)
         {
           RenderTexture clearcoatRoughnessTexture = converter.GetRenderTexture(clearcoat.ClearcoatRoughnessTexture.Index);
+          clearcoatRoughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
           pbr.SetChild(clearcoatRoughnessTexture, PhysicallyBased.ClearcoatRoughness);
           pbr.SetChildSlotOn(PhysicallyBased.ClearcoatRoughness, true, RenderContent.ChangeContexts.Program);
@@ -193,6 +204,7 @@ namespace glTF_BinImporter
         if (clearcoat.ClearcoatNormalTexture != null)
         {
           RenderTexture clearcoatNormalTexture = converter.GetRenderTexture(clearcoat.ClearcoatNormalTexture.Index);
+          clearcoatNormalTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatNormalTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
           pbr.SetChild(clearcoatNormalTexture, PhysicallyBased.ClearcoatBump);
           pbr.SetChildSlotOn(PhysicallyBased.ClearcoatBump, true, RenderContent.ChangeContexts.Program);
@@ -214,6 +226,7 @@ namespace glTF_BinImporter
         {
           //Transmission is stored in the textures red channel
           RenderTexture transmissionTexture = converter.GetRenderTextureFromChannel(transmission.TransmissionTexture.Index, RgbaChannel.Red);
+          transmissionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(transmission.TransmissionTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
           pbr.SetChild(transmissionTexture, PhysicallyBased.Opacity);
           pbr.SetChildSlotOn(PhysicallyBased.Opacity, true, RenderContent.ChangeContexts.Program);
@@ -221,7 +234,7 @@ namespace glTF_BinImporter
         }
         else
         {
-          pbr.SetParameter(PhysicallyBased.Opacity, 1.0 - transmission.TransmissionFactor);
+          pbr.SetParameter(PhysicallyBased.Opacity, transmission.TransmissionFactor);
         }
       }
     }
@@ -249,6 +262,7 @@ namespace glTF_BinImporter
         if (specular.SpecularTexture != null)
         {
           RenderTexture specularTexture = converter.GetRenderTextureFromChannel(specular.SpecularTexture.Index, RgbaChannel.Alpha);
+          specularTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(specular.SpecularTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
           pbr.SetChild(specularTexture, PhysicallyBased.Specular);
           pbr.SetChildSlotOn(PhysicallyBased.Specular, true, RenderContent.ChangeContexts.Program);
