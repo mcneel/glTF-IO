@@ -96,7 +96,9 @@ namespace glTF_BinImporter
 
       if (material.OcclusionTexture != null)
       {
-        RenderTexture occlusionTexture = converter.GetRenderTexture(material.OcclusionTexture.Index);
+        //Occlusion texture is only the R channel
+        //https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_occlusiontexture
+        RenderTexture occlusionTexture = converter.GetRenderTextureFromChannel(material.OcclusionTexture.Index, RgbaChannel.Red);
         occlusionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.OcclusionTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
         pbr.SetChild(occlusionTexture, PhysicallyBased.AmbientOcclusion);

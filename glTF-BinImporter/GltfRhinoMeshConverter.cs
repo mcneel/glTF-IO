@@ -60,13 +60,9 @@ namespace glTF_BinImporter
       {
         Rhino.Geometry.Mesh rhinoMesh = pair.RhinoMesh.DuplicateMesh();
 
-        if(pair.TextureMappings != null && pair.TextureMappings.Count > 0)
-        {
-          rhinoMesh.TextureCoordinates.SetTextureCoordinates(pair.TextureMappings[0]);
-          rhinoMesh.SetSurfaceParametersFromTextureCoordinates();
-        }
+        Rhino.Geometry.Transform final = GltfUtils.YupToZup * transform;
 
-        rhinoMesh.Transform(GltfUtils.YupToZup * transform);
+        rhinoMesh.Transform(final);
 
         Guid objectId = doc.Objects.AddMesh(rhinoMesh, null, null, false, false);
 
@@ -90,19 +86,14 @@ namespace glTF_BinImporter
         {
           for(int i = 0; i < pair.TextureMappings.Count; i++)
           {
-            if(i == 0)
-            {
-              Rhino.Render.TextureMapping surfaceMapping = Rhino.Render.TextureMapping.CreateSurfaceParameterMapping();
-              rhinoObject.SetTextureMapping(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(i), surfaceMapping);
-            }
-            else
-            {
-              Rhino.Geometry.Mesh mappingMesh = pair.RhinoMesh.DuplicateMesh();
-              mappingMesh.TextureCoordinates.SetTextureCoordinates(pair.TextureMappings[i]);
+            Rhino.Geometry.Mesh mappingMesh = pair.RhinoMesh.DuplicateMesh();
+            mappingMesh.TextureCoordinates.SetTextureCoordinates(pair.TextureMappings[i]);
+            mappingMesh.TextureCoordinates.ReverseTextureCoordinates(1);
 
-              Rhino.Render.TextureMapping meshMapping = Rhino.Render.TextureMapping.CreateCustomMeshMapping(mappingMesh);
-              rhinoObject.SetTextureMapping(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(i), meshMapping);
-            }
+            mappingMesh.Transform(final);
+
+            Rhino.Render.TextureMapping meshMapping = Rhino.Render.TextureMapping.CreateCustomMeshMapping(mappingMesh);
+            rhinoObject.SetTextureMapping(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(i), meshMapping);
           }
 
           rhinoObject.CommitChanges();
@@ -251,12 +242,7 @@ namespace glTF_BinImporter
 
         if(rc != null)
         {
-          for(int i = 0; i < rc.TextureCoordinates.Count; i++)
-          {
-            Rhino.Geometry.Point2f textureCoordinate = rc.TextureCoordinates[i];
-            textureCoordinate.Y = 1.0f - textureCoordinate.Y;
-            rc.TextureCoordinates[i] = textureCoordinate;
-          }
+          rc.TextureCoordinates.ReverseTextureCoordinates(1);
         }
 
         return rc;
@@ -698,8 +684,6 @@ namespace glTF_BinImporter
           int index = i * 2;
 
           Rhino.Geometry.Point2f coordinate = new Rhino.Geometry.Point2f(texCoords[index + 0], texCoords[index + 1]);
-
-          coordinate.Y = 1.0f - coordinate.Y;
 
           textureCoordinates[i] = coordinate;
         }
