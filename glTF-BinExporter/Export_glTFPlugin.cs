@@ -9,7 +9,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 
-namespace glTF_BinExporter
+namespace Export_glTF
 {
   public enum SubDMode : int
   {
@@ -17,11 +17,11 @@ namespace glTF_BinExporter
     Surface = 1,
   }
 
-  public class glTFBinExporterPlugin : Rhino.PlugIns.FileExportPlugIn
+  public class Export_glTFPlugin : Rhino.PlugIns.FileExportPlugIn
   {
-    public static glTFBinExporterPlugin Instance { get; private set; }
+    public static Export_glTFPlugin Instance { get; private set; }
 
-    public glTFBinExporterPlugin()
+    public Export_glTFPlugin()
     {
       Instance = this;
     }
@@ -53,7 +53,7 @@ namespace glTF_BinExporter
         }
       }
 
-      glTFExportOptions exportOptions = glTFBinExporterPlugin.GetSavedOptions();
+      glTFExportOptions exportOptions = Export_glTFPlugin.GetSavedOptions();
 
       IEnumerable<Rhino.DocObjects.RhinoObject> objects = GetObjectsToExport(doc, options);
 

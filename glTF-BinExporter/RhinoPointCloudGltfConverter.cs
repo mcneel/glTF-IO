@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace glTF_BinExporter
+namespace Export_glTF
 {
   class RhinoPointCloudGltfConverter
   {
