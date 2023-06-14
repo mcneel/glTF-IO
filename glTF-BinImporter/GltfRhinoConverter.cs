@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace Import_glTF
 {
@@ -40,8 +41,6 @@ namespace Import_glTF
 
     List<byte[]> buffers = new List<byte[]>();
 
-    List<System.Drawing.Bitmap> images = new List<System.Drawing.Bitmap>();
-
     List<Rhino.Render.RenderMaterial> materials = new List<Rhino.Render.RenderMaterial>();
 
     List<GltfMeshHolder> meshHolders = new List<GltfMeshHolder>();
@@ -51,6 +50,8 @@ namespace Import_glTF
     int nameCounter = 0;
 
     public readonly Rhino.Geometry.Transform GltfToDocumentScale;
+
+    List<ImageHolder> images = new List<ImageHolder>();
 
     public string GetUniqueName(string name)
     {
@@ -70,7 +71,7 @@ namespace Import_glTF
       return name;
     }
 
-    private string GetUnpackedTexturePath()
+    public string GetUnpackedTexturePath()
     {
       string root = Rhino.Render.Utilities.GetUnpackedFilesCacheFolder(doc, true);
       string full = Path.Combine(root, filenameNoExtension);
@@ -81,35 +82,6 @@ namespace Import_glTF
       }
 
       return full;
-    }
-
-    public Rhino.Render.RenderTexture GetRenderTextureFromBitmap(System.Drawing.Bitmap bmp, string name)
-    {
-      string unpackedPath = GetUnpackedTexturePath();
-      string textureFilename = Path.Combine(unpackedPath, name + ".png");
-
-      bmp.Save(textureFilename);
-
-      if (File.Exists(textureFilename))
-      {
-        Rhino.DocObjects.Texture tex = new Rhino.DocObjects.Texture();
-        tex.FileName = textureFilename;
-
-        Rhino.Render.SimulatedTexture sim = new Rhino.Render.SimulatedTexture(doc, tex);
-        Rhino.Render.RenderTexture texture =  Rhino.Render.RenderTexture.NewBitmapTexture(sim, doc);
-
-        texture.BeginChange(Rhino.Render.RenderContent.ChangeContexts.Program);
-
-        texture.Name = name;
-
-        texture.EndChange();
-
-        return texture;
-      }
-      else
-      {
-        return null;
-      }
     }
 
     public bool Convert()
@@ -127,7 +99,9 @@ namespace Import_glTF
 
           System.Drawing.Bitmap bmp = new System.Drawing.Bitmap(stream);
 
-          images.Add(bmp);
+          string name = gltf.Images[i].Name;
+
+          images.Add(new ImageHolder(this, bmp, name));
         }
       }
 
@@ -289,117 +263,88 @@ namespace Import_glTF
       return translationTransform * rotationTransform * scalingTransform;
     }
 
+    public Rhino.Render.RenderTexture CreateMultiplyTexture(Rhino.Render.RenderTexture texture, Rhino.Display.Color4f factor)
+    {
+      Rhino.Render.RenderContent rc = Rhino.Render.RenderContentType.NewContentFromTypeId(Rhino.Render.ContentUuids.MultiplyTextureType);
+
+      Rhino.Render.RenderTexture multiplyTexture = rc as Rhino.Render.RenderTexture;
+
+      if(multiplyTexture == null)
+      {
+        return null;
+      }
+
+      multiplyTexture.BeginChange(Rhino.Render.RenderContent.ChangeContexts.Program);
+
+      const string colorOneName = "color-one";
+      const string colorTwoName = "color-two";
+
+      multiplyTexture.SetChild(texture, colorOneName);
+      multiplyTexture.SetChildSlotOn(colorOneName, true, Rhino.Render.RenderContent.ChangeContexts.Program);
+      multiplyTexture.SetChildSlotAmount(colorOneName, 100.0, Rhino.Render.RenderContent.ChangeContexts.Program);
+
+      multiplyTexture.SetParameter(colorTwoName, factor);
+
+      multiplyTexture.EndChange();
+
+      return multiplyTexture;
+    }
+
     public Rhino.Render.RenderTexture GetRenderTexture(int textureIndex)
     {
-      System.Drawing.Bitmap bmp = GetTextureBitmap(textureIndex, out string name);
+      glTFLoader.Schema.Texture texture = gltf.Textures[textureIndex];
 
-      if (bmp == null)
+      if(!texture.Source.HasValue)
       {
         return null;
       }
 
-      return GetRenderTextureFromBitmap(bmp, name);
+      ImageHolder holder = images[texture.Source.Value];
+
+      string textureName = GetUniqueName(GetUsefulTextureName(texture));
+
+      string textureFilename = holder.RgbaImagePath();
+
+      return RenderTextureForFile(textureFilename, textureName);
     }
 
-    public Rhino.Render.RenderTexture GetRenderTextureFromChannel(int textureIndex, RgbaChannel channel)
+    public Rhino.Render.RenderTexture GetRenderTexture(int textureIndex, ArgbChannel channel)
     {
-      System.Drawing.Bitmap bmp = GetTextureBitmap(textureIndex, out string name);
+      glTFLoader.Schema.Texture texture = gltf.Textures[textureIndex];
 
-      if (bmp == null)
+      if (!texture.Source.HasValue)
       {
         return null;
       }
 
-      int width = bmp.Width;
-      int height = bmp.Height;
+      ImageHolder holder = images[texture.Source.Value];
 
-      System.Drawing.Bitmap resolvedBmp = new System.Drawing.Bitmap(width, height);
+      string textureName = GetUniqueName(GetUsefulTextureName(texture));
 
-      for (int i = 0; i < width; i++)
-      {
-        for (int j = 0; j < height; j++)
-        {
-          System.Drawing.Color color = bmp.GetPixel(i, j);
+      string textureFilename = holder.ImagePathForChannel(channel);
 
-          System.Drawing.Color colorResolved = GetColorFromChannel(color, channel);
-
-          resolvedBmp.SetPixel(i, j, colorResolved);
-        }
-      }
-
-      return GetRenderTextureFromBitmap(resolvedBmp, name);
+      return RenderTextureForFile(textureFilename, textureName);
     }
 
-    public System.Drawing.Color GetColorFromChannel(System.Drawing.Color color, RgbaChannel channel)
+    Rhino.Render.RenderTexture RenderTextureForFile(string textureFilename, string textureName)
     {
-      switch (channel)
+      if (File.Exists(textureFilename))
       {
-        case RgbaChannel.Red:
-          return System.Drawing.Color.FromArgb(color.R, color.R, color.R);
-        case RgbaChannel.Green:
-          return System.Drawing.Color.FromArgb(color.G, color.G, color.G);
-        case RgbaChannel.Blue:
-          return System.Drawing.Color.FromArgb(color.B, color.B, color.B);
-        case RgbaChannel.Alpha:
-          return System.Drawing.Color.FromArgb(color.A, color.A, color.A);
-        default:
-          return color;
-      }
-    }
+        Rhino.DocObjects.Texture tex = new Rhino.DocObjects.Texture();
+        tex.FileName = textureFilename;
 
-    public Rhino.Render.RenderTexture GetRenderTexture(int textureIndex, Rhino.Display.Color4f factor)
-    {
-      System.Drawing.Bitmap bmp = GetTextureBitmap(textureIndex, out string name);
+        Rhino.Render.SimulatedTexture sim = new Rhino.Render.SimulatedTexture(doc, tex);
+        Rhino.Render.RenderTexture texture = Rhino.Render.RenderTexture.NewBitmapTexture(sim, doc);
 
-      if (bmp == null)
-      {
-        return null;
+        texture.BeginChange(Rhino.Render.RenderContent.ChangeContexts.Program);
+
+        texture.Name = textureName;
+
+        texture.EndChange();
+
+        return texture;
       }
 
-      int width = bmp.Width;
-      int height = bmp.Height;
-
-
-      System.Drawing.Bitmap resolvedBmp = new System.Drawing.Bitmap(width, height);
-
-      for (int i = 0; i < width; i++)
-      {
-        for (int j = 0; j < height; j++)
-        {
-          Rhino.Display.Color4f colorAt = new Rhino.Display.Color4f(bmp.GetPixel(i, j));
-          
-          float r = GltfUtils.Clampf(colorAt.R * factor.R, 0.0f, 1.0f);
-          float g = GltfUtils.Clampf(colorAt.G * factor.G, 0.0f, 1.0f);
-          float b = GltfUtils.Clampf(colorAt.B * factor.B, 0.0f, 1.0f);
-          float a = GltfUtils.Clampf(colorAt.A * factor.A, 0.0f, 1.0f);
-
-          Rhino.Display.Color4f colorFinal = new Rhino.Display.Color4f(r, g, b, a);
-
-          resolvedBmp.SetPixel(i, j, colorFinal.AsSystemColor());
-        }
-      }
-
-      return GetRenderTextureFromBitmap(resolvedBmp, name);
-    }
-
-    System.Drawing.Bitmap GetTextureBitmap(int textureIndex, out string name)
-    {
-      if (gltf.Textures != null && textureIndex < gltf.Textures.Length && textureIndex >= 0)
-      {
-        glTFLoader.Schema.Texture texture = gltf.Textures[textureIndex];
-
-        if (texture.Source != null)
-        {
-          int imageIndex = texture.Source.Value;
-
-          string usefulName = GetUsefulTextureName(texture);
-
-          name = GetUniqueName(usefulName);
-          return images[imageIndex];
-        }
-      }
-
-      name = "";
       return null;
     }
 
@@ -425,15 +370,6 @@ namespace Import_glTF
       }
 
       return ""; //Unique will get us some unnamed image
-    }
-
-    public RhinoGltfMetallicRoughnessConverter GetMetallicRoughnessTexture(int textureIndex)
-    {
-      System.Drawing.Bitmap bmp = GetTextureBitmap(textureIndex, out string name);
-
-      RhinoGltfMetallicRoughnessConverter converter = new RhinoGltfMetallicRoughnessConverter(this, bmp, doc, name);
-
-      return converter;
     }
 
     public byte[] GetBuffer(int index)

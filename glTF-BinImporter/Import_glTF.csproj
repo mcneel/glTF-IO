@@ -38,13 +38,13 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\..\..\version.cs" Link="Properties\version.cs" />
+    <Compile Include="ImageHolder.cs" />
     <Compile Include="Import_glTFPlugIn.cs" />
     <Compile Include="GltfRhinoConverter.cs" />
     <Compile Include="GltfRhinoMaterialConverter.cs" />
     <Compile Include="GltfRhinoMeshConverter.cs" />
     <Compile Include="GltfUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="RhinoGltfMetallicRoughnessConverter.cs" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="System" />

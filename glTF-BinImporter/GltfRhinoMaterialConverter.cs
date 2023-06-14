@@ -37,18 +37,31 @@ namespace Import_glTF
         {
           int index = material.PbrMetallicRoughness.BaseColorTexture.Index;
 
-          RenderTexture texture = converter.GetRenderTexture(index, baseColor);
+          RenderTexture texture = converter.GetRenderTexture(index);
           texture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.BaseColorTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-          pbr.SetChild(texture, Rhino.Render.ParameterNames.PhysicallyBased.BaseColor);
+          RenderTexture child = null;
+
+          if(baseColor.R == 1.0 && baseColor.G == 1.0 && baseColor.B == 1.0 && baseColor.A == 1.0)
+          {
+            child = texture;
+          }
+          else
+          {
+            child = converter.CreateMultiplyTexture(texture, baseColor);
+          }
+
+          pbr.SetChild(child, Rhino.Render.ParameterNames.PhysicallyBased.BaseColor);
           pbr.SetChildSlotOn(Rhino.Render.ParameterNames.PhysicallyBased.BaseColor, true, RenderContent.ChangeContexts.Program);
 
           pbr.SetParameter("alpha-transparency", true);
         }
+        else
+        {
+          baseColor = GltfUtils.UnapplyGamma(baseColor);
 
-        baseColor = GltfUtils.UnapplyGamma(baseColor);
-
-        pbr.SetParameter(PhysicallyBased.BaseColor, baseColor);
+          pbr.SetParameter(PhysicallyBased.BaseColor, baseColor);
+        }
 
         double roughness = material.PbrMetallicRoughness.RoughnessFactor;
 
@@ -58,16 +71,17 @@ namespace Import_glTF
         {
           int index = material.PbrMetallicRoughness.MetallicRoughnessTexture.Index;
 
-          RhinoGltfMetallicRoughnessConverter metallicRoughness = converter.GetMetallicRoughnessTexture(index);
+          RenderTexture metallicTexture = converter.GetRenderTexture(index, ArgbChannel.Blue);
+          RenderTexture roughnessTexture = converter.GetRenderTexture(index, ArgbChannel.Green);
 
-          metallicRoughness.MetallicTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
-          metallicRoughness.RoughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
+          metallicTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
+          roughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-          pbr.SetChild(metallicRoughness.MetallicTexture, PhysicallyBased.Metallic);
+          pbr.SetChild(metallicTexture, PhysicallyBased.Metallic);
           pbr.SetChildSlotOn(PhysicallyBased.Metallic, true, RenderContent.ChangeContexts.Program);
           pbr.SetChildSlotAmount(PhysicallyBased.Metallic, metalness * 100.0, RenderContent.ChangeContexts.Program);
 
-          pbr.SetChild(metallicRoughness.RoughnessTexture, PhysicallyBased.Roughness);
+          pbr.SetChild(roughnessTexture, PhysicallyBased.Roughness);
           pbr.SetChildSlotOn(PhysicallyBased.Roughness, true, RenderContent.ChangeContexts.Program);
           pbr.SetChildSlotAmount(PhysicallyBased.Roughness, roughness * 100.0, RenderContent.ChangeContexts.Program);
         }
@@ -98,7 +112,7 @@ namespace Import_glTF
       {
         //Occlusion texture is only the R channel
         //https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_occlusiontexture
-        RenderTexture occlusionTexture = converter.GetRenderTextureFromChannel(material.OcclusionTexture.Index, RgbaChannel.Red);
+        RenderTexture occlusionTexture = converter.GetRenderTexture(material.OcclusionTexture.Index, ArgbChannel.Red);
         occlusionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.OcclusionTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
         pbr.SetChild(occlusionTexture, PhysicallyBased.AmbientOcclusion);
@@ -227,7 +241,7 @@ namespace Import_glTF
         if (transmission.TransmissionTexture != null)
         {
           //Transmission is stored in the textures red channel
-          RenderTexture transmissionTexture = converter.GetRenderTextureFromChannel(transmission.TransmissionTexture.Index, RgbaChannel.Red);
+          RenderTexture transmissionTexture = converter.GetRenderTexture(transmission.TransmissionTexture.Index, ArgbChannel.Red);
           transmissionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(transmission.TransmissionTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
           pbr.SetChild(transmissionTexture, PhysicallyBased.Opacity);
@@ -263,7 +277,7 @@ namespace Import_glTF
       {
         if (specular.SpecularTexture != null)
         {
-          RenderTexture specularTexture = converter.GetRenderTextureFromChannel(specular.SpecularTexture.Index, RgbaChannel.Alpha);
+          RenderTexture specularTexture = converter.GetRenderTexture(specular.SpecularTexture.Index, ArgbChannel.Alpha);
           specularTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(specular.SpecularTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
           pbr.SetChild(specularTexture, PhysicallyBased.Specular);
