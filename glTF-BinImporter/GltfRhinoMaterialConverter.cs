@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace glTF_BinImporter
+namespace Import_glTF
 {
   class GltfRhinoMaterialConverter
   {
