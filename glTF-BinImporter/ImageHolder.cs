@@ -71,22 +71,7 @@ namespace Import_glTF
 
         string textureFilename = Path.Combine(unpackedPath, channelName + ".png");
 
-        int width = originalBmp.Width;
-        int height = originalBmp.Height;
-
-        System.Drawing.Bitmap resolvedBmp = new System.Drawing.Bitmap(width, height);
-
-        for (int i = 0; i < width; i++)
-        {
-          for (int j = 0; j < height; j++)
-          {
-            System.Drawing.Color color = originalBmp.GetPixel(i, j);
-
-            System.Drawing.Color colorResolved = GetColorFromChannel(color, channel);
-
-            resolvedBmp.SetPixel(i, j, colorResolved);
-          }
-        }
+        System.Drawing.Bitmap resolvedBmp = GetSingleChannelImage(channel);
 
         resolvedBmp.Save(textureFilename);
 
@@ -94,6 +79,48 @@ namespace Import_glTF
       }
 
       return channelPaths[idx];
+    }
+
+    System.Drawing.Bitmap GetSingleChannelImage(ArgbChannel channel)
+    {
+      int width = originalBmp.Width;
+      int height = originalBmp.Height;
+
+      int countPixels = width * height;
+
+      int[] resolvedPixels = new int[countPixels];
+
+      System.Drawing.Rectangle bmpRectangle = new System.Drawing.Rectangle(0, 0, width, height);
+
+      //Fetch original image pixels
+      {
+        var originalBitmapData = originalBmp.LockBits(bmpRectangle, System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+
+        System.Runtime.InteropServices.Marshal.Copy(originalBitmapData.Scan0, resolvedPixels, 0, countPixels);
+
+        originalBmp.UnlockBits(originalBitmapData);
+      }
+
+      //Get single channel image
+      Parallel.For(0, countPixels, i =>
+      {
+        System.Drawing.Color color = System.Drawing.Color.FromArgb(resolvedPixels[i]);
+
+        resolvedPixels[i] = GetColorFromChannel(color, channel).ToArgb();
+      });
+
+      System.Drawing.Bitmap resolvedBmp = new System.Drawing.Bitmap(width, height);
+
+      //Dump in the new bitmap
+      {
+        var resolvedBmpData = resolvedBmp.LockBits(bmpRectangle, System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+        System.Runtime.InteropServices.Marshal.Copy(resolvedPixels, 0, resolvedBmpData.Scan0, countPixels);
+
+        resolvedBmp.UnlockBits(resolvedBmpData);
+      }
+
+      return resolvedBmp;
     }
 
     string StemForChannel(ArgbChannel channel)
