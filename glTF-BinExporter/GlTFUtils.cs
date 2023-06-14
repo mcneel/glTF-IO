@@ -8,7 +8,7 @@ using Rhino.DocObjects;
 using Rhino.Geometry;
 using Rhino.Render;
 
-namespace glTF_BinExporter
+namespace Export_glTF
 {
   /// <summary>
   /// Functions for helping with adding RhinoObjects to the RootModel.

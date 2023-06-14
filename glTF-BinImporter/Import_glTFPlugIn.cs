@@ -2,16 +2,16 @@ using Rhino;
 using Rhino.PlugIns;
 using System;
 
-namespace glTF_BinImporter
+namespace Import_glTF
 {
-  public class glTFBinImporterPlugIn : FileImportPlugIn
+  public class Import_glTFPlugIn : FileImportPlugIn
   {
-    public glTFBinImporterPlugIn()
+    public Import_glTFPlugIn()
     {
       Instance = this;
     }
 
-    public static glTFBinImporterPlugIn Instance
+    public static Import_glTFPlugIn Instance
     {
       get; private set;
     }

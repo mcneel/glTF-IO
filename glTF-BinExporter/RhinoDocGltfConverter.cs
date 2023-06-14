@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Rhino;
 
-namespace glTF_BinExporter
+namespace Export_glTF
 {
   public class ObjectExportData
   {

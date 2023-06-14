@@ -4,7 +4,7 @@ using System.Text;
 using System.Threading.Tasks;
 using glTFLoader.Schema;
 
-namespace glTF_BinExporter
+namespace Export_glTF
 {
   /// <summary>
   /// Helper class to convert to the serializeable class.

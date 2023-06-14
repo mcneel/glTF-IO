@@ -2,7 +2,7 @@ using Rhino.Display;
 using Rhino.DocObjects;
 using Rhino.Geometry;
 
-namespace glTF_BinExporter
+namespace Export_glTF
 {
   public static class Constants
   {

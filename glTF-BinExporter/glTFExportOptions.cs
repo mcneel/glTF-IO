@@ -4,29 +4,29 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace glTF_BinExporter
+namespace Export_glTF
 {
   public class glTFExportOptions
   {
-    public bool MapRhinoZToGltfY = glTFBinExporterPlugin.MapRhinoZToGltfYDefault;
-    public bool ExportMaterials = glTFBinExporterPlugin.ExportMaterialsDefault;
-    public bool UseDoubleSidedMaterials = glTFBinExporterPlugin.UseDoubleSidedMaterialsDefault;
-    public bool UseDisplayColorForUnsetMaterials = glTFBinExporterPlugin.UseDisplayColorForUnsetMaterialsDefault;
+    public bool MapRhinoZToGltfY = Export_glTFPlugin.MapRhinoZToGltfYDefault;
+    public bool ExportMaterials = Export_glTFPlugin.ExportMaterialsDefault;
+    public bool UseDoubleSidedMaterials = Export_glTFPlugin.UseDoubleSidedMaterialsDefault;
+    public bool UseDisplayColorForUnsetMaterials = Export_glTFPlugin.UseDisplayColorForUnsetMaterialsDefault;
 
-    public SubDMode SubDExportMode = glTFBinExporterPlugin.SubDModeDefault;
-    public int SubDLevel = glTFBinExporterPlugin.SubDLevelDefault;
+    public SubDMode SubDExportMode = Export_glTFPlugin.SubDModeDefault;
+    public int SubDLevel = Export_glTFPlugin.SubDLevelDefault;
 
-    public bool ExportTextureCoordinates = glTFBinExporterPlugin.ExportTextureCoordinatesDefault;
-    public bool ExportVertexNormals = glTFBinExporterPlugin.ExportVertexNormalsDefault;
-    public bool ExportOpenMeshes = glTFBinExporterPlugin.ExportOpenMeshesDefault;
-    public bool ExportVertexColors = glTFBinExporterPlugin.ExportVertexColorsDefault;
+    public bool ExportTextureCoordinates = Export_glTFPlugin.ExportTextureCoordinatesDefault;
+    public bool ExportVertexNormals = Export_glTFPlugin.ExportVertexNormalsDefault;
+    public bool ExportOpenMeshes = Export_glTFPlugin.ExportOpenMeshesDefault;
+    public bool ExportVertexColors = Export_glTFPlugin.ExportVertexColorsDefault;
 
-    public bool UseDracoCompression = glTFBinExporterPlugin.UseDracoCompressionDefault;
-    public int DracoCompressionLevel = glTFBinExporterPlugin.DracoCompressionLevelDefault;
-    public int DracoQuantizationBitsPosition = glTFBinExporterPlugin.DracoQuantizationBitsPositionDefault;
-    public int DracoQuantizationBitsNormal = glTFBinExporterPlugin.DracoQuantizationBitsNormalDefault;
-    public int DracoQuantizationBitsTexture = glTFBinExporterPlugin.DracoQuantizationBitsTextureDefault;
+    public bool UseDracoCompression = Export_glTFPlugin.UseDracoCompressionDefault;
+    public int DracoCompressionLevel = Export_glTFPlugin.DracoCompressionLevelDefault;
+    public int DracoQuantizationBitsPosition = Export_glTFPlugin.DracoQuantizationBitsPositionDefault;
+    public int DracoQuantizationBitsNormal = Export_glTFPlugin.DracoQuantizationBitsNormalDefault;
+    public int DracoQuantizationBitsTexture = Export_glTFPlugin.DracoQuantizationBitsTextureDefault;
 
-    public bool ExportLayers = glTFBinExporterPlugin.ExportLayers;
+    public bool ExportLayers = Export_glTFPlugin.ExportLayers;
   }
 }

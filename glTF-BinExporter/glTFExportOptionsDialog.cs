@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Eto.Forms;
 
-namespace glTF_BinExporter
+namespace Export_glTF
 {
   class ExportOptionsDialog : Dialog<DialogResult>
   {
@@ -239,61 +239,61 @@ namespace glTF_BinExporter
 
     private void OptionsToDialog()
     {
-      useSettingsDontShowDialogCheck.Checked = glTFBinExporterPlugin.UseSavedSettingsDontShowDialog;
+      useSettingsDontShowDialogCheck.Checked = Export_glTFPlugin.UseSavedSettingsDontShowDialog;
 
-      mapZtoY.Checked = glTFBinExporterPlugin.MapRhinoZToGltfY;
-      exportMaterials.Checked = glTFBinExporterPlugin.ExportMaterials;
-      EnableDisableMaterialControls(glTFBinExporterPlugin.ExportMaterials);
-      exportLayers.Checked = glTFBinExporterPlugin.ExportLayers;
+      mapZtoY.Checked = Export_glTFPlugin.MapRhinoZToGltfY;
+      exportMaterials.Checked = Export_glTFPlugin.ExportMaterials;
+      EnableDisableMaterialControls(Export_glTFPlugin.ExportMaterials);
+      exportLayers.Checked = Export_glTFPlugin.ExportLayers;
 
-      useDoubleSidedMaterials.Checked = glTFBinExporterPlugin.UseDoubleSidedMaterials;
-      useDisplayColorForUnsetMaterial.Checked = glTFBinExporterPlugin.UseDisplayColorForUnsetMaterials;
+      useDoubleSidedMaterials.Checked = Export_glTFPlugin.UseDoubleSidedMaterials;
+      useDisplayColorForUnsetMaterial.Checked = Export_glTFPlugin.UseDisplayColorForUnsetMaterials;
 
-      bool controlNet = glTFBinExporterPlugin.SubDExportMode == SubDMode.ControlNet;
+      bool controlNet = Export_glTFPlugin.SubDExportMode == SubDMode.ControlNet;
       useSubdControlNet.Checked = controlNet;
       EnabledDisableSubDLevel(!controlNet);
 
-      subdLevel.Value = glTFBinExporterPlugin.SubDLevel;
+      subdLevel.Value = Export_glTFPlugin.SubDLevel;
 
-      exportTextureCoordinates.Checked = glTFBinExporterPlugin.ExportTextureCoordinates;
-      exportVertexNormals.Checked = glTFBinExporterPlugin.ExportVertexNormals;
-      exportOpenMeshes.Checked = glTFBinExporterPlugin.ExportOpenMeshes;
-      exportVertexColors.Checked = glTFBinExporterPlugin.ExportVertexColors;
+      exportTextureCoordinates.Checked = Export_glTFPlugin.ExportTextureCoordinates;
+      exportVertexNormals.Checked = Export_glTFPlugin.ExportVertexNormals;
+      exportOpenMeshes.Checked = Export_glTFPlugin.ExportOpenMeshes;
+      exportVertexColors.Checked = Export_glTFPlugin.ExportVertexColors;
 
-      useDracoCompressionCheck.Checked = glTFBinExporterPlugin.UseDracoCompression;
-      EnableDisableDracoControls(glTFBinExporterPlugin.UseDracoCompression);
+      useDracoCompressionCheck.Checked = Export_glTFPlugin.UseDracoCompression;
+      EnableDisableDracoControls(Export_glTFPlugin.UseDracoCompression);
 
-      dracoCompressionLevelInput.Value = glTFBinExporterPlugin.DracoCompressionLevel;
-      dracoQuantizationBitsInputPosition.Value = glTFBinExporterPlugin.DracoQuantizationBitsPosition;
-      dracoQuantizationBitsInputNormal.Value = glTFBinExporterPlugin.DracoQuantizationBitsNormal;
-      dracoQuantizationBitsInputTexture.Value = glTFBinExporterPlugin.DracoQuantizationBitsTexture;
+      dracoCompressionLevelInput.Value = Export_glTFPlugin.DracoCompressionLevel;
+      dracoQuantizationBitsInputPosition.Value = Export_glTFPlugin.DracoQuantizationBitsPosition;
+      dracoQuantizationBitsInputNormal.Value = Export_glTFPlugin.DracoQuantizationBitsNormal;
+      dracoQuantizationBitsInputTexture.Value = Export_glTFPlugin.DracoQuantizationBitsTexture;
     }
 
     private void DialogToOptions()
     {
-      glTFBinExporterPlugin.UseSavedSettingsDontShowDialog = GetCheckboxValue(useSettingsDontShowDialogCheck);
+      Export_glTFPlugin.UseSavedSettingsDontShowDialog = GetCheckboxValue(useSettingsDontShowDialogCheck);
 
-      glTFBinExporterPlugin.MapRhinoZToGltfY = GetCheckboxValue(mapZtoY);
-      glTFBinExporterPlugin.ExportMaterials = GetCheckboxValue(exportMaterials);
-      glTFBinExporterPlugin.UseDoubleSidedMaterials = GetCheckboxValue(useDoubleSidedMaterials);
-      glTFBinExporterPlugin.UseDisplayColorForUnsetMaterials = GetCheckboxValue(useDisplayColorForUnsetMaterial);
-      glTFBinExporterPlugin.ExportLayers = GetCheckboxValue(exportLayers);
+      Export_glTFPlugin.MapRhinoZToGltfY = GetCheckboxValue(mapZtoY);
+      Export_glTFPlugin.ExportMaterials = GetCheckboxValue(exportMaterials);
+      Export_glTFPlugin.UseDoubleSidedMaterials = GetCheckboxValue(useDoubleSidedMaterials);
+      Export_glTFPlugin.UseDisplayColorForUnsetMaterials = GetCheckboxValue(useDisplayColorForUnsetMaterial);
+      Export_glTFPlugin.ExportLayers = GetCheckboxValue(exportLayers);
 
       bool controlNet = GetCheckboxValue(useSubdControlNet);
-      glTFBinExporterPlugin.SubDExportMode = controlNet ? SubDMode.ControlNet : SubDMode.Surface;
+      Export_glTFPlugin.SubDExportMode = controlNet ? SubDMode.ControlNet : SubDMode.Surface;
 
-      glTFBinExporterPlugin.SubDLevel = subdLevel.Value;
+      Export_glTFPlugin.SubDLevel = subdLevel.Value;
 
-      glTFBinExporterPlugin.ExportTextureCoordinates = GetCheckboxValue(exportTextureCoordinates);
-      glTFBinExporterPlugin.ExportVertexNormals = GetCheckboxValue(exportVertexNormals);
-      glTFBinExporterPlugin.ExportOpenMeshes = GetCheckboxValue(exportOpenMeshes);
-      glTFBinExporterPlugin.ExportVertexColors = GetCheckboxValue(exportVertexColors);
+      Export_glTFPlugin.ExportTextureCoordinates = GetCheckboxValue(exportTextureCoordinates);
+      Export_glTFPlugin.ExportVertexNormals = GetCheckboxValue(exportVertexNormals);
+      Export_glTFPlugin.ExportOpenMeshes = GetCheckboxValue(exportOpenMeshes);
+      Export_glTFPlugin.ExportVertexColors = GetCheckboxValue(exportVertexColors);
 
-      glTFBinExporterPlugin.UseDracoCompression = GetCheckboxValue(useDracoCompressionCheck);
-      glTFBinExporterPlugin.DracoCompressionLevel = (int)dracoCompressionLevelInput.Value;
-      glTFBinExporterPlugin.DracoQuantizationBitsPosition = (int)dracoQuantizationBitsInputPosition.Value;
-      glTFBinExporterPlugin.DracoQuantizationBitsNormal = (int)dracoQuantizationBitsInputNormal.Value;
-      glTFBinExporterPlugin.DracoQuantizationBitsTexture = (int)dracoQuantizationBitsInputTexture.Value;
+      Export_glTFPlugin.UseDracoCompression = GetCheckboxValue(useDracoCompressionCheck);
+      Export_glTFPlugin.DracoCompressionLevel = (int)dracoCompressionLevelInput.Value;
+      Export_glTFPlugin.DracoQuantizationBitsPosition = (int)dracoQuantizationBitsInputPosition.Value;
+      Export_glTFPlugin.DracoQuantizationBitsNormal = (int)dracoQuantizationBitsInputNormal.Value;
+      Export_glTFPlugin.DracoQuantizationBitsTexture = (int)dracoQuantizationBitsInputTexture.Value;
     }
 
     private bool GetCheckboxValue(CheckBox checkBox)

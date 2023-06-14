@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace glTF_BinImporter
+namespace Import_glTF
 {
   class GltfRhinoConverter
   {
@@ -22,6 +22,9 @@ namespace glTF_BinImporter
       extension = Path.GetExtension(path);
 
       binaryFile = extension.ToLower() == ".glb";
+
+      double scaleFactor = Rhino.RhinoMath.UnitScale(Rhino.UnitSystem.Meters, doc.ModelUnitSystem);
+      GltfToDocumentScale = Rhino.Geometry.Transform.Scale(Rhino.Geometry.Point3d.Origin, scaleFactor);
     }
 
     glTFLoader.Schema.Gltf gltf = null;
@@ -46,6 +49,8 @@ namespace glTF_BinImporter
     HashSet<string> Names = new HashSet<string>();
 
     int nameCounter = 0;
+
+    public readonly Rhino.Geometry.Transform GltfToDocumentScale;
 
     public string GetUniqueName(string name)
     {

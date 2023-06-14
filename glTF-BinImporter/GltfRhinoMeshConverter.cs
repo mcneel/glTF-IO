@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace glTF_BinImporter
+namespace Import_glTF
 {
   struct GltfMeshMaterialPair
   {
@@ -56,13 +56,13 @@ namespace glTF_BinImporter
 
     public void AddInstance(Rhino.Geometry.Transform transform)
     {
+      Rhino.Geometry.Transform totalTransform = converter.GltfToDocumentScale * GltfUtils.YupToZup * transform;
+
       foreach (GltfMeshMaterialPair pair in meshMaterialPairs)
       {
         Rhino.Geometry.Mesh rhinoMesh = pair.RhinoMesh.DuplicateMesh();
 
-        Rhino.Geometry.Transform final = GltfUtils.YupToZup * transform;
-
-        rhinoMesh.Transform(final);
+        rhinoMesh.Transform(totalTransform);
 
         Guid objectId = doc.Objects.AddMesh(rhinoMesh, null, null, false, false);
 
@@ -90,7 +90,7 @@ namespace glTF_BinImporter
             mappingMesh.TextureCoordinates.SetTextureCoordinates(pair.TextureMappings[i]);
             mappingMesh.TextureCoordinates.ReverseTextureCoordinates(1);
 
-            mappingMesh.Transform(final);
+            mappingMesh.Transform(totalTransform);
 
             Rhino.Render.TextureMapping meshMapping = Rhino.Render.TextureMapping.CreateCustomMeshMapping(mappingMesh);
             rhinoObject.SetTextureMapping(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(i), meshMapping);
@@ -110,7 +110,7 @@ namespace glTF_BinImporter
           continue;
         }
 
-        pointCloud.Transform(GltfUtils.YupToZup * transform);
+        pointCloud.Transform(totalTransform);
 
         Guid objectId = doc.Objects.Add(pointCloud);
 
