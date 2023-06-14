@@ -6,14 +6,6 @@ using System.Threading.Tasks;
 
 namespace Import_glTF
 {
-  enum RgbaChannel
-  {
-    Red = 0,
-    Green = 1,
-    Blue = 2,
-    Alpha = 3,
-  }
-
   static class GltfUtils
   {
     public static readonly Rhino.Geometry.Transform YupToZup = new Rhino.Geometry.Transform()
