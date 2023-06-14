@@ -56,10 +56,12 @@ namespace Import_glTF
 
           pbr.SetParameter("alpha-transparency", true);
         }
+        else
+        {
+          baseColor = GltfUtils.UnapplyGamma(baseColor);
 
-        baseColor = GltfUtils.UnapplyGamma(baseColor);
-
-        pbr.SetParameter(PhysicallyBased.BaseColor, baseColor);
+          pbr.SetParameter(PhysicallyBased.BaseColor, baseColor);
+        }
 
         double roughness = material.PbrMetallicRoughness.RoughnessFactor;
 

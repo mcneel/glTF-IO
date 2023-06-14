@@ -265,7 +265,7 @@ namespace Import_glTF
 
     public Rhino.Render.RenderTexture CreateMultiplyTexture(Rhino.Render.RenderTexture texture, Rhino.Display.Color4f factor)
     {
-      Rhino.Render.RenderContent rc = Rhino.Render.RenderContent.Create(doc, Rhino.Render.ContentUuids.MultiplyTextureType);
+      Rhino.Render.RenderContent rc = Rhino.Render.RenderContentType.NewContentFromTypeId(Rhino.Render.ContentUuids.MultiplyTextureType);
 
       Rhino.Render.RenderTexture multiplyTexture = rc as Rhino.Render.RenderTexture;
 
@@ -273,6 +273,8 @@ namespace Import_glTF
       {
         return null;
       }
+
+      multiplyTexture.BeginChange(Rhino.Render.RenderContent.ChangeContexts.Program);
 
       const string colorOneName = "color-one";
       const string colorTwoName = "color-two";
@@ -282,6 +284,8 @@ namespace Import_glTF
       multiplyTexture.SetChildSlotAmount(colorOneName, 100.0, Rhino.Render.RenderContent.ChangeContexts.Program);
 
       multiplyTexture.SetParameter(colorTwoName, factor);
+
+      multiplyTexture.EndChange();
 
       return multiplyTexture;
     }
