@@ -22,6 +22,9 @@ namespace Import_glTF
       extension = Path.GetExtension(path);
 
       binaryFile = extension.ToLower() == ".glb";
+
+      double scaleFactor = Rhino.RhinoMath.UnitScale(Rhino.UnitSystem.Meters, doc.ModelUnitSystem);
+      GltfToDocumentScale = Rhino.Geometry.Transform.Scale(Rhino.Geometry.Point3d.Origin, scaleFactor);
     }
 
     glTFLoader.Schema.Gltf gltf = null;
@@ -46,6 +49,8 @@ namespace Import_glTF
     HashSet<string> Names = new HashSet<string>();
 
     int nameCounter = 0;
+
+    public readonly Rhino.Geometry.Transform GltfToDocumentScale;
 
     public string GetUniqueName(string name)
     {
