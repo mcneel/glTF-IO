@@ -53,7 +53,7 @@ namespace Export_glTF
 
       exportMaterials.Text = Rhino.UI.Localization.LocalizeString("Export materials", 5);
 
-      cullBackfaces.Text = Rhino.UI.LOC.STR("Cull backfaces");
+      cullBackfaces.Text = Rhino.UI.Localization.LocalizeString("Cull backfaces", 28);
 
       useDisplayColorForUnsetMaterial.Text = Rhino.UI.Localization.LocalizeString("Use display color for objects with no material set", 6);
 
