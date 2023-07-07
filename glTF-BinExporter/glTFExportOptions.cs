@@ -10,7 +10,7 @@ namespace Export_glTF
   {
     public bool MapRhinoZToGltfY = Export_glTFPlugin.MapRhinoZToGltfYDefault;
     public bool ExportMaterials = Export_glTFPlugin.ExportMaterialsDefault;
-    public bool UseDoubleSidedMaterials = Export_glTFPlugin.UseDoubleSidedMaterialsDefault;
+    public bool CullBackfaces = Export_glTFPlugin.CullBackfacesDefault;
     public bool UseDisplayColorForUnsetMaterials = Export_glTFPlugin.UseDisplayColorForUnsetMaterialsDefault;
 
     public SubDMode SubDExportMode = Export_glTFPlugin.SubDModeDefault;
