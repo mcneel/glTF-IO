@@ -14,7 +14,7 @@ namespace Export_glTF
 
     private CheckBox mapZtoY = new CheckBox();
     private CheckBox exportMaterials = new CheckBox();
-    private CheckBox useDoubleSidedMaterials = new CheckBox();
+    private CheckBox cullBackfaces = new CheckBox();
     private CheckBox useDisplayColorForUnsetMaterial = new CheckBox();
     private CheckBox exportLayers = new CheckBox();
 
@@ -53,7 +53,7 @@ namespace Export_glTF
 
       exportMaterials.Text = Rhino.UI.Localization.LocalizeString("Export materials", 5);
 
-      useDoubleSidedMaterials.Text = Rhino.UI.Localization.LocalizeString("Use double sided materials", 28);
+      cullBackfaces.Text = Rhino.UI.LOC.STR("Cull backfaces");
 
       useDisplayColorForUnsetMaterial.Text = Rhino.UI.Localization.LocalizeString("Use display color for objects with no material set", 6);
 
@@ -168,7 +168,7 @@ namespace Export_glTF
           {
             new TableRow(mapZtoY),
             new TableRow(exportMaterials),
-            new TableRow(useDoubleSidedMaterials),
+            new TableRow(cullBackfaces),
             new TableRow(useDisplayColorForUnsetMaterial),
             new TableRow(exportLayers),
             null,
@@ -246,7 +246,7 @@ namespace Export_glTF
       EnableDisableMaterialControls(Export_glTFPlugin.ExportMaterials);
       exportLayers.Checked = Export_glTFPlugin.ExportLayers;
 
-      useDoubleSidedMaterials.Checked = Export_glTFPlugin.UseDoubleSidedMaterials;
+      cullBackfaces.Checked = Export_glTFPlugin.CullBackfaces;
       useDisplayColorForUnsetMaterial.Checked = Export_glTFPlugin.UseDisplayColorForUnsetMaterials;
 
       bool controlNet = Export_glTFPlugin.SubDExportMode == SubDMode.ControlNet;
@@ -275,7 +275,7 @@ namespace Export_glTF
 
       Export_glTFPlugin.MapRhinoZToGltfY = GetCheckboxValue(mapZtoY);
       Export_glTFPlugin.ExportMaterials = GetCheckboxValue(exportMaterials);
-      Export_glTFPlugin.UseDoubleSidedMaterials = GetCheckboxValue(useDoubleSidedMaterials);
+      Export_glTFPlugin.CullBackfaces = GetCheckboxValue(cullBackfaces);
       Export_glTFPlugin.UseDisplayColorForUnsetMaterials = GetCheckboxValue(useDisplayColorForUnsetMaterial);
       Export_glTFPlugin.ExportLayers = GetCheckboxValue(exportLayers);
 
@@ -331,7 +331,7 @@ namespace Export_glTF
     private void EnableDisableMaterialControls(bool enabled)
     {
       useDisplayColorForUnsetMaterial.Enabled = enabled;
-      useDoubleSidedMaterials.Enabled = enabled;
+      cullBackfaces.Enabled = enabled;
     }
 
     private void UseSubdControlNet_CheckedChanged(object sender, EventArgs e)

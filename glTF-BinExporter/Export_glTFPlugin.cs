@@ -133,13 +133,14 @@ namespace Export_glTF
       set => Instance.Settings.SetBool(exportMaterialsKey, value);
     }
 
-    private const string useDoubleSidedMaterialsKey = "UseDoubleSidedMaterials";
-    public const bool UseDoubleSidedMaterialsDefault = false;
+    //Originally named as UseDoubleSidedMaterials, keeping the same key for users which have set this
+    private const string cullBackfacesKey = "UseDoubleSidedMaterials";
+    public const bool CullBackfacesDefault = false;
 
-    public static bool UseDoubleSidedMaterials
+    public static bool CullBackfaces
     {
-      get => Instance.Settings.GetBool(useDoubleSidedMaterialsKey, UseDoubleSidedMaterialsDefault);
-      set => Instance.Settings.SetBool(useDoubleSidedMaterialsKey, value);
+      get => Instance.Settings.GetBool(cullBackfacesKey, CullBackfacesDefault);
+      set => Instance.Settings.SetBool(cullBackfacesKey, value);
     }
 
     private const string useDisplayColorForUnsetMaterialsKey = "UseDisplayColorForUnsetMaterials";
@@ -265,7 +266,7 @@ namespace Export_glTF
       {
         MapRhinoZToGltfY = MapRhinoZToGltfY,
         ExportMaterials = ExportMaterials,
-        UseDoubleSidedMaterials = UseDoubleSidedMaterials,
+        CullBackfaces = CullBackfaces,
         UseDisplayColorForUnsetMaterials = UseDisplayColorForUnsetMaterials,
 
         SubDExportMode = SubDExportMode,
