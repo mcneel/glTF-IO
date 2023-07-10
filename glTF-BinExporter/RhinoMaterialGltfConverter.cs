@@ -49,7 +49,7 @@ namespace Export_glTF
             {
                 Name = renderMaterial.Name,
                 PbrMetallicRoughness = new glTFLoader.Schema.MaterialPbrMetallicRoughness(),
-                DoubleSided = options.CullBackfaces,
+                DoubleSided = !options.CullBackfaces,
             };
 
             if (!rhinoMaterial.IsPhysicallyBased)

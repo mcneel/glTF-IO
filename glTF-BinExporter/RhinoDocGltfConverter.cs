@@ -244,7 +244,7 @@ namespace Export_glTF
         {
           BaseColorFactor = color.ToFloatArray(),
         },
-        DoubleSided = options.CullBackfaces,
+        DoubleSided = !options.CullBackfaces,
       };
 
       return dummy.Materials.AddAndReturnIndex(material);
