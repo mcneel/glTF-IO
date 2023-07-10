@@ -133,9 +133,8 @@ namespace Export_glTF
       set => Instance.Settings.SetBool(exportMaterialsKey, value);
     }
 
-    //Originally named as UseDoubleSidedMaterials, keeping the same key for users which have set this
-    private const string cullBackfacesKey = "UseDoubleSidedMaterials";
-    public const bool CullBackfacesDefault = false;
+    private const string cullBackfacesKey = "CullBackfaces";
+    public const bool CullBackfacesDefault = true;
 
     public static bool CullBackfaces
     {
