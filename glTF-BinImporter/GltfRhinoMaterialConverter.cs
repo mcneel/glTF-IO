@@ -40,6 +40,8 @@ namespace Import_glTF
           RenderTexture texture = converter.GetRenderTexture(index);
           texture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.BaseColorTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
+          TryHandleTextureTransform(texture, material.PbrMetallicRoughness.BaseColorTexture.Extensions);
+
           RenderTexture child = null;
 
           if(baseColor.R == 1.0 && baseColor.G == 1.0 && baseColor.B == 1.0 && baseColor.A == 1.0)
@@ -77,6 +79,9 @@ namespace Import_glTF
           metallicTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
           roughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
+          TryHandleTextureTransform(metallicTexture, material.PbrMetallicRoughness.MetallicRoughnessTexture.Extensions);
+          TryHandleTextureTransform(roughnessTexture, material.PbrMetallicRoughness.MetallicRoughnessTexture.Extensions);
+
           pbr.SetChild(metallicTexture, PhysicallyBased.Metallic);
           pbr.SetChildSlotOn(PhysicallyBased.Metallic, true, RenderContent.ChangeContexts.Program);
           pbr.SetChildSlotAmount(PhysicallyBased.Metallic, metalness * 100.0, RenderContent.ChangeContexts.Program);
@@ -104,6 +109,8 @@ namespace Import_glTF
         RenderTexture emissiveTexture = converter.GetRenderTexture(material.EmissiveTexture.Index);
         emissiveTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.EmissiveTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
+        TryHandleTextureTransform(emissiveTexture, material.EmissiveTexture.Extensions);
+
         pbr.SetChild(emissiveTexture, PhysicallyBased.Emission);
         pbr.SetChildSlotOn(PhysicallyBased.Emission, true, RenderContent.ChangeContexts.Program);
       }
@@ -115,6 +122,8 @@ namespace Import_glTF
         RenderTexture occlusionTexture = converter.GetRenderTexture(material.OcclusionTexture.Index, ArgbChannel.Red);
         occlusionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.OcclusionTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
+        TryHandleTextureTransform(occlusionTexture, material.OcclusionTexture.Extensions);
+
         pbr.SetChild(occlusionTexture, PhysicallyBased.AmbientOcclusion);
         pbr.SetChildSlotOn(PhysicallyBased.AmbientOcclusion, true, RenderContent.ChangeContexts.Program);
         pbr.SetChildSlotAmount(PhysicallyBased.AmbientOcclusion, material.OcclusionTexture.Strength * 100.0, RenderContent.ChangeContexts.Program);
@@ -125,6 +134,8 @@ namespace Import_glTF
       {
         RenderTexture normalTexture = converter.GetRenderTexture(material.NormalTexture.Index);
         normalTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.NormalTexture.TexCoord), RenderContent.ChangeContexts.Program);
+
+        TryHandleTextureTransform(normalTexture, material.NormalTexture.Extensions);
 
         pbr.SetChild(normalTexture, PhysicallyBased.Bump);
         pbr.SetChildSlotOn(PhysicallyBased.Bump, true, RenderContent.ChangeContexts.Program);
@@ -194,6 +205,8 @@ namespace Import_glTF
           RenderTexture clearcoatTexture = converter.GetRenderTexture(clearcoat.ClearcoatTexture.Index);
           clearcoatTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
+          TryHandleTextureTransform(clearcoatTexture, clearcoat.ClearcoatTexture.Extensions);
+
           pbr.SetChild(clearcoatTexture, PhysicallyBased.Clearcoat);
           pbr.SetChildSlotOn(PhysicallyBased.Clearcoat, true, RenderContent.ChangeContexts.Program);
           pbr.SetChildSlotAmount(PhysicallyBased.Clearcoat, clearcoat.ClearcoatFactor * 100.0, RenderContent.ChangeContexts.Program);
@@ -208,6 +221,8 @@ namespace Import_glTF
           RenderTexture clearcoatRoughnessTexture = converter.GetRenderTexture(clearcoat.ClearcoatRoughnessTexture.Index);
           clearcoatRoughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
+          TryHandleTextureTransform(clearcoatRoughnessTexture, clearcoat.ClearcoatRoughnessTexture.Extensions);
+
           pbr.SetChild(clearcoatRoughnessTexture, PhysicallyBased.ClearcoatRoughness);
           pbr.SetChildSlotOn(PhysicallyBased.ClearcoatRoughness, true, RenderContent.ChangeContexts.Program);
           pbr.SetChildSlotAmount(PhysicallyBased.ClearcoatRoughness, clearcoat.ClearcoatRoughnessFactor * 100.0, RenderContent.ChangeContexts.Program);
@@ -221,6 +236,8 @@ namespace Import_glTF
         {
           RenderTexture clearcoatNormalTexture = converter.GetRenderTexture(clearcoat.ClearcoatNormalTexture.Index);
           clearcoatNormalTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatNormalTexture.TexCoord), RenderContent.ChangeContexts.Program);
+
+          TryHandleTextureTransform(clearcoatNormalTexture, clearcoat.ClearcoatNormalTexture.Extensions);
 
           pbr.SetChild(clearcoatNormalTexture, PhysicallyBased.ClearcoatBump);
           pbr.SetChildSlotOn(PhysicallyBased.ClearcoatBump, true, RenderContent.ChangeContexts.Program);
@@ -243,6 +260,8 @@ namespace Import_glTF
           //Transmission is stored in the textures red channel
           RenderTexture transmissionTexture = converter.GetRenderTexture(transmission.TransmissionTexture.Index, ArgbChannel.Red);
           transmissionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(transmission.TransmissionTexture.TexCoord), RenderContent.ChangeContexts.Program);
+
+          TryHandleTextureTransform(transmissionTexture, transmission.TransmissionTexture.Extensions);
 
           pbr.SetChild(transmissionTexture, PhysicallyBased.Opacity);
           pbr.SetChildSlotOn(PhysicallyBased.Opacity, true, RenderContent.ChangeContexts.Program);
@@ -280,6 +299,8 @@ namespace Import_glTF
           RenderTexture specularTexture = converter.GetRenderTexture(specular.SpecularTexture.Index, ArgbChannel.Alpha);
           specularTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(specular.SpecularTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
+          TryHandleTextureTransform(specularTexture, specular.SpecularTexture.Extensions);
+
           pbr.SetChild(specularTexture, PhysicallyBased.Specular);
           pbr.SetChildSlotOn(PhysicallyBased.Specular, true, RenderContent.ChangeContexts.Program);
           pbr.SetChildSlotAmount(PhysicallyBased.Specular, specular.SpecularFactor * 100.0, RenderContent.ChangeContexts.Program);
@@ -291,5 +312,85 @@ namespace Import_glTF
       }
     }
 
+    bool TryHandleTextureTransform(RenderTexture texture, Dictionary<string, object> extensions)
+    {
+      if (extensions == null)
+      {
+        //No extensions
+        return true;
+      }
+
+      if(!extensions.TryGetValue(glTFExtensions.KHR_texture_transform.Tag, out object t))
+      {
+        //No texture transform extension
+        return true;
+      }
+
+      string transformText = t.ToString();
+
+      glTFExtensions.KHR_texture_transform transform = Newtonsoft.Json.JsonConvert.DeserializeObject<glTFExtensions.KHR_texture_transform>(transformText);
+
+      if (transform == null)
+      {
+        //Failed to deserialize the texture transform
+        return false;
+      }
+
+      Rhino.Geometry.Transform translate = Rhino.Geometry.Transform.Identity;
+      Rhino.Geometry.Transform rotate = Rhino.Geometry.Transform.Identity;
+      Rhino.Geometry.Transform scale = Rhino.Geometry.Transform.Identity;
+
+      //glTF textures have an upper left origin
+      //https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#images
+      //Rhino textures use a lower left origin
+      //So here we apply the transforms in glTF space and then decompose the mapping transform into Rhinos UV space
+      Rhino.Geometry.Point3d gltfTextureOrigin = new Rhino.Geometry.Point3d(0.0, 1.0, 0.0);
+
+      Rhino.Geometry.Plane gltfBasePlane = new Rhino.Geometry.Plane(gltfTextureOrigin, Rhino.Geometry.Vector3d.ZAxis);
+
+      if (transform.Offset != null)
+      {
+        //glTF has flipped V texcoords
+        translate = Rhino.Geometry.Transform.Translation(new Rhino.Geometry.Vector3d(transform.Offset[0], -transform.Offset[1], 0.0));
+      }
+
+      if (transform.Rotation != 0.0f)
+      {
+        //Use the glTF origin as rotation origin
+        rotate = Rhino.Geometry.Transform.Rotation(transform.Rotation, Rhino.Geometry.Vector3d.ZAxis, gltfTextureOrigin);
+      }
+
+      if (transform.Scale != null)
+      {
+        //Use the glTF origin and the center of scaling
+        scale = Rhino.Geometry.Transform.Scale(gltfBasePlane, transform.Scale[0], transform.Scale[1], 1.0);
+      }
+
+      //Compile the TRS transform
+      Rhino.Geometry.Transform compiled = translate * rotate * scale;
+
+      //Decompose to Rhino
+      compiled.DecomposeTextureMapping(out Rhino.Geometry.Vector3d offset, out Rhino.Geometry.Vector3d repeat, out Rhino.Geometry.Vector3d rotation);
+
+      if (
+        rotation == Rhino.Geometry.Vector3d.Unset ||
+        repeat == Rhino.Geometry.Vector3d.Unset
+        )
+      {
+        //Unset vectors means it failed to decompose the texture mapping transform
+        return false;
+      }
+
+      //The rotation comes out in radians but it needs to be degrees when set on the texture
+      rotation.X = Rhino.RhinoMath.ToDegrees(rotation.X);
+      rotation.Y = Rhino.RhinoMath.ToDegrees(rotation.Y);
+      rotation.Z = Rhino.RhinoMath.ToDegrees(rotation.Z);
+
+      texture.SetOffset(offset, RenderContent.ChangeContexts.Program);
+      texture.SetRepeat(repeat, RenderContent.ChangeContexts.Program);
+      texture.SetRotation(rotation, RenderContent.ChangeContexts.Program);
+
+      return true;
+    }
   }
 }
