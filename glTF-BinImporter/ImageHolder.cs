@@ -51,6 +51,13 @@ namespace Import_glTF
 
         string textureFilename = Path.Combine(unpackedPath, name + ".png");
 
+        int counter = 0;
+        while(File.Exists(textureFilename))
+        {
+          counter++;
+          textureFilename = Path.Combine(unpackedPath, name + "-" + counter.ToString() + ".png");
+        }
+
         originalBmp.Save(textureFilename);
 
         rgbaImagePath = textureFilename;
