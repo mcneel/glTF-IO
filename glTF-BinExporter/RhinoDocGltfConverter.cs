@@ -7,11 +7,16 @@ using Rhino;
 
 namespace Export_glTF
 {
+  public class MeshMaterialPair
+  {
+    public Rhino.Geometry.Mesh Mesh = null;
+    public Rhino.Render.RenderMaterial RenderMaterial = null;
+  }
+
   public class ObjectExportData
   {
-    public List<Rhino.Geometry.Mesh> Meshes = new List<Rhino.Geometry.Mesh>();
+    public List<MeshMaterialPair> Meshes = new List<MeshMaterialPair>();
     public Rhino.Geometry.Transform Transform = Rhino.Geometry.Transform.Identity;
-    public Rhino.Render.RenderMaterial RenderMaterial = null;
     public Rhino.DocObjects.RhinoObject Object = null;
   }
 
@@ -118,9 +123,7 @@ namespace Export_glTF
 
       foreach (ObjectExportData exportData in sanitized)
       {
-        int? materialIndex = GetMaterial(exportData.RenderMaterial, exportData.Object);
-
-        RhinoMeshGltfConverter meshConverter = new RhinoMeshGltfConverter(exportData, materialIndex, options, binary, dummy, binaryBuffer);
+        RhinoMeshGltfConverter meshConverter = new RhinoMeshGltfConverter(this, exportData, options, binary, dummy, binaryBuffer);
         int meshIndex = meshConverter.AddMesh();
 
         glTFLoader.Schema.Node node = new glTFLoader.Schema.Node()
@@ -207,7 +210,7 @@ namespace Export_glTF
       return binaryBuffer.ToArray();
     }
 
-    int? GetMaterial(Rhino.Render.RenderMaterial material, Rhino.DocObjects.RhinoObject rhinoObject)
+    public int? GetMaterial(Rhino.Render.RenderMaterial material, Rhino.DocObjects.RhinoObject rhinoObject)
     {
       if (!options.ExportMaterials)
       {
@@ -308,7 +311,6 @@ namespace Export_glTF
             {
               Object = item.rhinoObject,
               Transform = item.trans,
-              RenderMaterial = GetObjectMaterial(item.rhinoObject),
             });
           }
         }
@@ -317,7 +319,6 @@ namespace Export_glTF
           explodedObjects.Add(new ObjectExportData()
           {
             Object = rhinoObject,
-            RenderMaterial = GetObjectMaterial(rhinoObject),
           });
         }
       }
@@ -335,7 +336,11 @@ namespace Export_glTF
 
             mesh.Transform(item.Transform);
 
-            item.Meshes.Add(mesh);
+            item.Meshes.Add(new MeshMaterialPair()
+            {
+              Mesh = mesh,
+              RenderMaterial = GetObjectMaterial(item.Object),
+            });
           }
           else
           {
@@ -345,7 +350,11 @@ namespace Export_glTF
 
             mesh.Transform(item.Transform);
 
-            item.Meshes.Add(mesh);
+            item.Meshes.Add(new MeshMaterialPair()
+            {
+              Mesh = mesh,
+              RenderMaterial = GetObjectMaterial(item.Object),
+            });
           }
         }
         else
@@ -358,7 +367,7 @@ namespace Export_glTF
             {
               Rhino.Geometry.Mesh copy = new Rhino.Geometry.Mesh();
               copy.CopyFrom(mesh.Mesh);
-
+              
               if (!mesh.Transform.IsIdentity)
               {
                 copy.Transform(mesh.Transform);
@@ -369,7 +378,11 @@ namespace Export_glTF
                 copy.Transform(item.Transform);
               }
 
-              item.Meshes.Add(copy);
+              item.Meshes.Add(new MeshMaterialPair()
+              {
+                Mesh = copy,
+                RenderMaterial = mesh.Material,
+              });
             }
           }
           else
@@ -381,9 +394,11 @@ namespace Export_glTF
               item.Object.CreateMeshes(Rhino.Geometry.MeshType.Render, parameters, false);
             }
 
-            item.Meshes.AddRange(item.Object.GetMeshes(Rhino.Geometry.MeshType.Render));
+            Rhino.Render.RenderMaterial material = GetObjectMaterial(item.Object);
 
-            foreach (Rhino.Geometry.Mesh mesh in item.Meshes)
+            IEnumerable<Rhino.Geometry.Mesh> meshes = item.Object.GetMeshes(Rhino.Geometry.MeshType.Render);
+
+            foreach (Rhino.Geometry.Mesh mesh in meshes)
             {
               mesh.EnsurePrivateCopy();
 
@@ -391,12 +406,18 @@ namespace Export_glTF
               {
                 mesh.Transform(item.Transform);
               }
+
+              item.Meshes.Add(new MeshMaterialPair()
+              {
+                Mesh = mesh,
+                RenderMaterial = material,
+              });
             }
           }
         }
 
         //Remove bad meshes
-        item.Meshes.RemoveAll(x => x == null || !MeshIsValidForExport(x));
+        item.Meshes.RemoveAll(x => x == null || !MeshIsValidForExport(x.Mesh));
       }
 
       //Remove meshless objects

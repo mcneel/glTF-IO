@@ -13,18 +13,18 @@ namespace Export_glTF
 {
   class RhinoMeshGltfConverter
   {
-    public RhinoMeshGltfConverter(ObjectExportData exportData, int? materialIndex, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
+    public RhinoMeshGltfConverter(RhinoDocGltfConverter converter, ObjectExportData exportData, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
     {
+      this.converter = converter;
       this.exportData = exportData;
-      this.materialIndex = materialIndex;
       this.options = options;
       this.binary = binary;
       this.dummy = dummy;
       this.binaryBuffer = binaryBuffer;
     }
 
+    private RhinoDocGltfConverter converter = null;
     private ObjectExportData exportData;
-    private int? materialIndex;
     private glTFExportOptions options = null;
     private bool binary = false;
     private gltfSchemaDummy dummy = null;
@@ -58,52 +58,52 @@ namespace Export_glTF
     {
       List<glTFLoader.Schema.MeshPrimitive> primitives = new List<glTFLoader.Schema.MeshPrimitive>();
 
-      foreach (Mesh rhinoMesh in exportData.Meshes)
+      foreach (MeshMaterialPair pair in exportData.Meshes)
       {
-        PreprocessMesh(rhinoMesh);
+        PreprocessMesh(pair.Mesh);
 
         if (options.UseDracoCompression)
         {
-          if (!SetDracoGeometryInfo(rhinoMesh))
+          if (!SetDracoGeometryInfo(pair.Mesh))
           {
             continue;
           }
         }
 
-        bool exportNormals = ExportNormals(rhinoMesh);
-        bool exportTextureCoordinates = ExportTextureCoordinates(rhinoMesh);
-        bool exportVertexColors = ExportVertexColors(rhinoMesh);
+        bool exportNormals = ExportNormals(pair.Mesh);
+        bool exportTextureCoordinates = ExportTextureCoordinates(pair.Mesh);
+        bool exportVertexColors = ExportVertexColors(pair.Mesh);
 
         glTFLoader.Schema.MeshPrimitive primitive = new glTFLoader.Schema.MeshPrimitive()
         {
           Attributes = new Dictionary<string, int>(),
         };
 
-        int vertexAccessorIdx = GetVertexAccessor(rhinoMesh.Vertices);
+        int vertexAccessorIdx = GetVertexAccessor(pair.Mesh.Vertices);
 
         primitive.Attributes.Add(Constants.PositionAttributeTag, vertexAccessorIdx);
 
-        int indicesAccessorIdx = GetIndicesAccessor(rhinoMesh.Faces, rhinoMesh.Vertices.Count);
+        int indicesAccessorIdx = GetIndicesAccessor(pair.Mesh.Faces, pair.Mesh.Vertices.Count);
 
         primitive.Indices = indicesAccessorIdx;
 
         if (exportNormals)
         {
-          int normalsAccessorIdx = GetNormalsAccessor(rhinoMesh.Normals);
+          int normalsAccessorIdx = GetNormalsAccessor(pair.Mesh.Normals);
 
           primitive.Attributes.Add(Constants.NormalAttributeTag, normalsAccessorIdx);
         }
 
         if (exportTextureCoordinates)
         {
-          int textureCoordinatesAccessorIdx = GetTextureCoordinatesAccessor(rhinoMesh.TextureCoordinates);
+          int textureCoordinatesAccessorIdx = GetTextureCoordinatesAccessor(pair.Mesh.TextureCoordinates);
 
           primitive.Attributes.Add(Constants.TexCoord0AttributeTag, textureCoordinatesAccessorIdx);
         }
 
         if (exportVertexColors)
         {
-          int vertexColorsAccessorIdx = GetVertexColorAccessor(rhinoMesh.VertexColors);
+          int vertexColorsAccessorIdx = GetVertexColorAccessor(pair.Mesh.VertexColors);
 
           primitive.Attributes.Add(Constants.VertexColorAttributeTag, vertexColorsAccessorIdx);
         }
@@ -137,7 +137,7 @@ namespace Export_glTF
           };
         }
 
-        primitive.Material = materialIndex;
+        primitive.Material = converter.GetMaterial(pair.RenderMaterial, exportData.Object);
 
         primitives.Add(primitive);
       }
