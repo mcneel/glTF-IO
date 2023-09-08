@@ -68,5 +68,10 @@ namespace Export_glTF
         point.Y,
       };
     }
+
+    public static float Clampf(float value, float min, float max)
+    {
+      return Math.Max(Math.Min(max, value), min);
+    }
   }
 }
