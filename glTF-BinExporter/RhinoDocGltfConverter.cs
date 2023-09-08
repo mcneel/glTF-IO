@@ -92,6 +92,7 @@ namespace Export_glTF
       dummy.ExtensionsUsed.Add(glTFExtensions.KHR_materials_clearcoat.Tag);
       dummy.ExtensionsUsed.Add(glTFExtensions.KHR_materials_ior.Tag);
       dummy.ExtensionsUsed.Add(glTFExtensions.KHR_materials_specular.Tag);
+      dummy.ExtensionsUsed.Add(glTFExtensions.KHR_materials_emissive_strength.Tag);
 
       IEnumerable<Rhino.DocObjects.RhinoObject> pointClouds = objects.Where(x => x.ObjectType == Rhino.DocObjects.ObjectType.PointSet);
 

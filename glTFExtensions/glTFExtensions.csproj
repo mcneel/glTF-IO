@@ -40,6 +40,7 @@
     <Compile Include="..\..\..\..\version.cs" Link="Properties\version.cs" />
     <Compile Include="KHR_draco_mesh_compression.cs" />
     <Compile Include="KHR_materials_clearcoat.cs" />
+    <Compile Include="KHR_materials_emissive_strength.cs" />
     <Compile Include="KHR_materials_ior.cs" />
     <Compile Include="KHR_materials_specular.cs" />
     <Compile Include="KHR_materials_transmission.cs" />
