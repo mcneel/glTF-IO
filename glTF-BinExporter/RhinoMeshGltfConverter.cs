@@ -13,18 +13,18 @@ namespace Export_glTF
 {
   class RhinoMeshGltfConverter
   {
-    public RhinoMeshGltfConverter(ObjectExportData exportData, int? materialIndex, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
+    public RhinoMeshGltfConverter(RhinoDocGltfConverter converter, ObjectExportData exportData, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
     {
+      this.converter = converter;
       this.exportData = exportData;
-      this.materialIndex = materialIndex;
       this.options = options;
       this.binary = binary;
       this.dummy = dummy;
       this.binaryBuffer = binaryBuffer;
     }
 
-    private ObjectExportData exportData;
-    private int? materialIndex;
+    private RhinoDocGltfConverter converter = null;
+    private ObjectExportData exportData = null;
     private glTFExportOptions options = null;
     private bool binary = false;
     private gltfSchemaDummy dummy = null;
@@ -58,8 +58,10 @@ namespace Export_glTF
     {
       List<glTFLoader.Schema.MeshPrimitive> primitives = new List<glTFLoader.Schema.MeshPrimitive>();
 
-      foreach (Mesh rhinoMesh in exportData.Meshes)
+      foreach (MeshMaterialPair pair in exportData.Meshes)
       {
+        Mesh rhinoMesh = pair.Mesh;
+
         PreprocessMesh(rhinoMesh);
 
         if (options.UseDracoCompression)
@@ -137,7 +139,7 @@ namespace Export_glTF
           };
         }
 
-        primitive.Material = materialIndex;
+        primitive.Material = converter.GetMaterial(pair.Material, exportData.Object);
 
         primitives.Add(primitive);
       }
