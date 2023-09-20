@@ -54,7 +54,7 @@ namespace Import_glTF
       });
     }
 
-    public void AddInstance(Rhino.Geometry.Transform transform)
+    public void AddInstance(Rhino.Geometry.Transform transform, int? layerIdx)
     {
       Rhino.Geometry.Transform totalTransform = converter.GltfToDocumentScale * GltfUtils.YupToZup * transform;
 
@@ -75,6 +75,11 @@ namespace Import_glTF
           rhinoObject.RenderMaterial = material;
           rhinoObject.Attributes.MaterialSource = Rhino.DocObjects.ObjectMaterialSource.MaterialFromObject;
           rhinoObject.Attributes.Name = pair.Name;
+
+          if(layerIdx.HasValue)
+          {
+            rhinoObject.Attributes.LayerIndex = layerIdx.Value;
+          }
 
           rhinoObject.CommitChanges();
         }
@@ -117,6 +122,11 @@ namespace Import_glTF
         Rhino.DocObjects.RhinoObject rhinoObject = doc.Objects.Find(objectId);
 
         rhinoObject.Attributes.Name = holder.Name;
+
+        if (layerIdx.HasValue)
+        {
+          rhinoObject.Attributes.LayerIndex = layerIdx.Value;
+        }
 
         rhinoObject.CommitChanges();
       }

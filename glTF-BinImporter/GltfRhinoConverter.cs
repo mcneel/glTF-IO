@@ -156,18 +156,22 @@ namespace Import_glTF
       {
         glTFLoader.Schema.Node parent = gltf.Nodes[parentIndex];
 
-        AddNodeRecursive(parent, Rhino.Geometry.Transform.Identity);
+        AddNodeRecursive(parent, Rhino.Geometry.Transform.Identity, null);
       }
 
     }
 
-    private void AddNodeRecursive(glTFLoader.Schema.Node node, Rhino.Geometry.Transform transform)
+    private void AddNodeRecursive(glTFLoader.Schema.Node node, Rhino.Geometry.Transform transform, int? activeLayerIdx)
     {
       Rhino.Geometry.Transform finalTransform = transform * GetNodeTransform(node);
 
       if (node.Mesh.HasValue)
       {
-        meshHolders[node.Mesh.Value].AddInstance(finalTransform);
+        meshHolders[node.Mesh.Value].AddInstance(finalTransform, activeLayerIdx);
+      }
+      else if(IsLayerNode(node))
+      {
+        activeLayerIdx = CreateLayerFromNode(node, activeLayerIdx);
       }
 
       if (node.Children != null)
@@ -176,9 +180,55 @@ namespace Import_glTF
         {
           glTFLoader.Schema.Node child = gltf.Nodes[childIndex];
 
-          AddNodeRecursive(child, finalTransform);
+          AddNodeRecursive(child, finalTransform, activeLayerIdx);
         }
       }
+    }
+
+    bool IsLayerNode(glTFLoader.Schema.Node node)
+    {
+      //Looking for a empty node that has a name we can call a node
+
+      if (node.Mesh != null) //No mesh
+      {
+        return false;
+      }
+
+      if (node.Camera != null) //No camera
+      {
+        return false;
+      }
+
+      if (string.IsNullOrEmpty(node.Name)) //Has a name
+      {
+        return false;
+      }
+
+      return true;
+    }
+
+    int? CreateLayerFromNode(glTFLoader.Schema.Node node, int? parentLayerIndex)
+    {
+      Rhino.DocObjects.Layer layerForNode = new Rhino.DocObjects.Layer();
+      layerForNode.Name = node.Name;
+
+      if(parentLayerIndex.HasValue)
+      {
+        Rhino.DocObjects.Layer parentLayer = doc.Layers[parentLayerIndex.Value];
+        if(parentLayer != null)
+        {
+          layerForNode.ParentLayerId = parentLayer.Id;
+        }
+      }  
+
+      int rc = doc.Layers.Add(layerForNode);
+
+      if (rc < 0)
+      {
+        return null;
+      }
+
+      return rc;
     }
 
     Rhino.Geometry.Transform GetNodeTransform(glTFLoader.Schema.Node node)
