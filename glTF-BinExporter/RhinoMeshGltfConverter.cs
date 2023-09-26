@@ -51,7 +51,12 @@ namespace Export_glTF
         rhinoMesh.Transform(Constants.ZtoYUp);
       }
 
-      rhinoMesh.TextureCoordinates.ReverseTextureCoordinates(1);
+      Parallel.For(0, rhinoMesh.TextureCoordinates.Count, i =>
+      {
+        Point2f tc = rhinoMesh.TextureCoordinates[i];
+        tc.Y = -tc.Y;
+        rhinoMesh.TextureCoordinates[i] = tc;
+      });
     }
 
     private List<glTFLoader.Schema.MeshPrimitive> GetPrimitives()
