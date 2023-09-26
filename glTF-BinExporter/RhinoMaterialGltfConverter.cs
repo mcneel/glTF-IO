@@ -75,7 +75,7 @@ namespace Export_glTF
 
       if (hasMetalTexture || hasRoughnessTexture)
       {
-        material.PbrMetallicRoughness.MetallicRoughnessTexture = AddMetallicRoughnessTexture(rhinoMaterial);
+        material.PbrMetallicRoughness.MetallicRoughnessTexture = GetMetallicRoughnessTextureInfo(rhinoMaterial);
 
         float metallic = metallicTexture == null ? (float)pbr.Metallic : GetTextureWeight(metallicTexture);
         float roughness = roughnessTexture == null ? (float)pbr.Roughness : GetTextureWeight(roughnessTexture);
@@ -91,19 +91,19 @@ namespace Export_glTF
 
       if (normalTexture != null && normalTexture.Enabled)
       {
-        material.NormalTexture = AddTextureNormal(normalTexture);
+        material.NormalTexture = GetNormalTextureInfo(normalTexture);
       }
 
       if (occlusionTexture != null && occlusionTexture.Enabled)
       {
-        material.OcclusionTexture = AddTextureOcclusion(occlusionTexture);
+        material.OcclusionTexture = GetOcclusionTextureInfo(occlusionTexture);
       }
 
       //Emission
 
       if (emissiveTexture != null && emissiveTexture.Enabled)
       {
-        material.EmissiveTexture = AddTexture(emissiveTexture.FileReference.FullPath);
+        material.EmissiveTexture = GetTextureInfo(emissiveTexture);
 
         float emissionMultiplier = 1.0f;
 
@@ -178,7 +178,7 @@ namespace Export_glTF
 
       if (clearcoatTexture != null && clearcoatTexture.Enabled)
       {
-        clearcoat.ClearcoatTexture = AddTexture(clearcoatTexture.FileReference.FullPath);
+        clearcoat.ClearcoatTexture = GetTextureInfo(clearcoatTexture);
         clearcoat.ClearcoatFactor = GetTextureWeight(clearcoatTexture);
       }
       else
@@ -188,7 +188,7 @@ namespace Export_glTF
 
       if (clearcoatRoughessTexture != null && clearcoatRoughessTexture.Enabled)
       {
-        clearcoat.ClearcoatRoughnessTexture = AddTexture(clearcoatRoughessTexture.FileReference.FullPath);
+        clearcoat.ClearcoatRoughnessTexture = GetTextureInfo(clearcoatRoughessTexture);
         clearcoat.ClearcoatRoughnessFactor = GetTextureWeight(clearcoatRoughessTexture);
       }
       else
@@ -198,7 +198,7 @@ namespace Export_glTF
 
       if (clearcoatNormalTexture != null && clearcoatNormalTexture.Enabled)
       {
-        clearcoat.ClearcoatNormalTexture = AddTextureNormal(clearcoatNormalTexture);
+        clearcoat.ClearcoatNormalTexture = GetNormalTextureInfo(clearcoatNormalTexture);
       }
 
       material.Extensions.Add(glTFExtensions.KHR_materials_clearcoat.Tag, clearcoat);
@@ -266,6 +266,18 @@ namespace Export_glTF
         Index = textureIndex,
         TexCoord = 0,
       };
+
+      glTFExtensions.KHR_texture_transform transform = GetTextureTransform(texture);
+
+      if(transform != null)
+      {
+        textureInfo.Extensions = new Dictionary<string, object>()
+        {
+          {
+            glTFExtensions.KHR_texture_transform.Tag, transform
+          }
+        };
+      }
 
       return textureInfo;
     }
@@ -569,25 +581,57 @@ namespace Export_glTF
       return GetImageBytes(bmp);
     }
 
-    private glTFLoader.Schema.TextureInfo AddTexture(string texturePath)
+    private glTFLoader.Schema.TextureInfo GetTextureInfo(Rhino.DocObjects.Texture texture)
     {
-      int textureIdx = AddTextureToBuffers(texturePath);
+      int textureIdx = AddTextureToBuffers(texture.FileReference.FullPath);
 
-      return new glTFLoader.Schema.TextureInfo() { Index = textureIdx, TexCoord = 0 };
+      glTFLoader.Schema.TextureInfo rc = new glTFLoader.Schema.TextureInfo()
+      {
+        Index = textureIdx,
+        TexCoord = 0
+      };
+
+      glTFExtensions.KHR_texture_transform transform = GetTextureTransform(texture);
+
+      if(transform != null)
+      {
+        rc.Extensions = new Dictionary<string, object>()
+        {
+          {
+            glTFExtensions.KHR_texture_transform.Tag, transform
+          }
+        };
+      }
+
+      return rc;
     }
 
-    private glTFLoader.Schema.MaterialNormalTextureInfo AddTextureNormal(Rhino.DocObjects.Texture normalTexture)
+    private glTFLoader.Schema.MaterialNormalTextureInfo GetNormalTextureInfo(Rhino.DocObjects.Texture normalTexture)
     {
       int textureIdx = AddNormalTexture(normalTexture);
 
       float weight = GetTextureWeight(normalTexture);
 
-      return new glTFLoader.Schema.MaterialNormalTextureInfo()
+      glTFLoader.Schema.MaterialNormalTextureInfo rc = new glTFLoader.Schema.MaterialNormalTextureInfo()
       {
         Index = textureIdx,
         TexCoord = 0,
         Scale = weight,
       };
+
+      glTFExtensions.KHR_texture_transform transform = GetTextureTransform(normalTexture);
+
+      if(transform != null)
+      {
+        rc.Extensions = new Dictionary<string, object>()
+        {
+          {
+            glTFExtensions.KHR_texture_transform.Tag, transform
+          }
+        };
+      }
+
+      return rc;
     }
 
     private int AddNormalTexture(Rhino.DocObjects.Texture normalTexture)
@@ -602,19 +646,33 @@ namespace Export_glTF
       return GetTextureFromBitmap(bmp);
     }
 
-    private glTFLoader.Schema.MaterialOcclusionTextureInfo AddTextureOcclusion(Rhino.DocObjects.Texture texture)
+    private glTFLoader.Schema.MaterialOcclusionTextureInfo GetOcclusionTextureInfo(Rhino.DocObjects.Texture occlusionTexture)
     {
-      int textureIdx = AddTextureToBuffers(texture.FileReference.FullPath);
+      int textureIdx = AddTextureToBuffers(occlusionTexture.FileReference.FullPath);
 
-      return new glTFLoader.Schema.MaterialOcclusionTextureInfo()
+      glTFLoader.Schema.MaterialOcclusionTextureInfo rc = new glTFLoader.Schema.MaterialOcclusionTextureInfo()
       {
         Index = textureIdx,
         TexCoord = 0,
-        Strength = GetTextureWeight(texture),
+        Strength = GetTextureWeight(occlusionTexture),
       };
+
+      glTFExtensions.KHR_texture_transform transform = GetTextureTransform(occlusionTexture);
+
+      if (transform != null)
+      {
+        rc.Extensions = new Dictionary<string, object>()
+        {
+          {
+            glTFExtensions.KHR_texture_transform.Tag, transform
+          }
+        };
+      }
+
+      return rc;
     }
 
-    public glTFLoader.Schema.TextureInfo AddMetallicRoughnessTexture(Rhino.DocObjects.Material rhinoMaterial)
+    public glTFLoader.Schema.TextureInfo GetMetallicRoughnessTextureInfo(Rhino.DocObjects.Material rhinoMaterial)
     {
       Rhino.DocObjects.Texture metalTexture = rhinoMaterial.PhysicallyBased.GetTexture(Rhino.DocObjects.TextureType.PBR_Metallic);
       Rhino.DocObjects.Texture roughnessTexture = rhinoMaterial.PhysicallyBased.GetTexture(Rhino.DocObjects.TextureType.PBR_Roughness);
@@ -693,7 +751,31 @@ namespace Export_glTF
         }
       }
 
-      return GetTextureInfoFromBitmap(bitmap);
+      glTFLoader.Schema.TextureInfo textureInfo = GetTextureInfoFromBitmap(bitmap);
+
+      glTFExtensions.KHR_texture_transform metallicTransform = hasMetalTexture ? GetTextureTransform(metalTexture) : null;
+      glTFExtensions.KHR_texture_transform roughnessTransform = hasRoughnessTexture ? GetTextureTransform(roughnessTexture) : null;
+
+      if(metallicTransform != null)
+      {
+        textureInfo.Extensions = new Dictionary<string, object>()
+        {
+          { 
+            glTFExtensions.KHR_texture_transform.Tag, metallicTransform
+          }
+        };
+      }
+      else if(roughnessTransform != null)
+      {
+        textureInfo.Extensions = new Dictionary<string, object>()
+        {
+          {
+            glTFExtensions.KHR_texture_transform.Tag, roughnessTransform
+          }
+        };
+      }
+
+      return textureInfo;
     }
 
     private int GetTextureFromBitmap(Bitmap bitmap)
