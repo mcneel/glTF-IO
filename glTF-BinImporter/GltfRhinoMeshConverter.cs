@@ -998,23 +998,33 @@ namespace Import_glTF
         return null;
       }
 
-      if(!AttemptGetIndices(primitive, out uint[] indices))
-      {
-        return null;
-      }
-
       List<Rhino.Geometry.Line> lines = new List<Rhino.Geometry.Line>();
 
-      int count = indices.Length / 2;
-      for(int i = 0; i < count; i++)
+      if (AttemptGetIndices(primitive, out uint[] indices))
       {
-        uint idxOne = indices[2 * i + 0];
-        uint idxTwo = indices[2 * i + 1];
-
-        if(idxOne < vertices.Length && idxTwo < vertices.Length)
+        int count = indices.Length / 2;
+        for (int i = 0; i < count; i++)
         {
-          Rhino.Geometry.Line line = new Rhino.Geometry.Line(vertices[idxOne], vertices[idxTwo]);
-          if(line.IsValid)
+          uint idxOne = indices[2 * i + 0];
+          uint idxTwo = indices[2 * i + 1];
+
+          if (idxOne < vertices.Length && idxTwo < vertices.Length)
+          {
+            Rhino.Geometry.Line line = new Rhino.Geometry.Line(vertices[idxOne], vertices[idxTwo]);
+            if (line.IsValid)
+            {
+              lines.Add(line);
+            }
+          }
+        }
+      }
+      else
+      {
+        int count = vertices.Length / 2;
+        for(int i = 0; i < count; i++)
+        {
+          Rhino.Geometry.Line line = new Rhino.Geometry.Line(vertices[2 * i], vertices[2 * i + 1]);
+          if (line.IsValid)
           {
             lines.Add(line);
           }
@@ -1031,21 +1041,20 @@ namespace Import_glTF
         return null;
       }
 
-      if (!AttemptGetIndices(primitive, out uint[] indices))
-      {
-        return null;
-      }
-
       Rhino.Geometry.Polyline polyline = new Rhino.Geometry.Polyline();
 
-      if(indices.Length > 0)
+      if (AttemptGetIndices(primitive, out uint[] indices))
       {
         polyline.Add(vertices[indices[0]]);
 
-        for(int i = 1; i < indices.Length; i++)
+        for (int i = 1; i < indices.Length; i++)
         {
           polyline.Add(vertices[indices[i]]);
         }
+      }
+      else
+      {
+        polyline.AddRange(vertices);
       }
 
       polyline.RemoveNearlyEqualSubsequentPoints(Rhino.RhinoMath.SqrtEpsilon);

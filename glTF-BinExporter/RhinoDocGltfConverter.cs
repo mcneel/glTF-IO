@@ -121,6 +121,41 @@ namespace Export_glTF
         }
       }
 
+      IEnumerable<Rhino.DocObjects.RhinoObject> curveObjects = objects.Where(x => {
+
+        //Must be curve
+        if(x.ObjectType != Rhino.DocObjects.ObjectType.Curve)
+        {
+          return false;
+        }
+
+        var flags = Rhino.Render.CustomRenderMeshes.RenderMeshProvider.Flags.Recursive;
+        Rhino.Render.CustomRenderMeshes.RenderMeshes renderMeshes = x.RenderMeshes(Rhino.Geometry.MeshType.Render, null, null, ref flags, null, null);
+
+        //Without any render meshes
+        return renderMeshes.InstanceCount == 0;
+      });
+
+      foreach(var curveObject in curveObjects)
+      {
+        RhinoCurveGltfConverter converter = new RhinoCurveGltfConverter(this, curveObject, options, binary, dummy, binaryBuffer);
+
+        int idx = converter.AddCurve();
+
+        if(idx != -1)
+        {
+          glTFLoader.Schema.Node node = new glTFLoader.Schema.Node()
+          {
+            Mesh = idx,
+            Name = GetObjectName(curveObject),
+          };
+
+          int nodeIndex = dummy.Nodes.AddAndReturnIndex(node);
+
+          AddNode(nodeIndex, curveObject);
+        }
+      }
+
       var sanitized = SanitizeRhinoObjects(objects);
 
       foreach (ObjectExportData exportData in sanitized)
@@ -221,8 +256,8 @@ namespace Export_glTF
 
       if (material == null && options.UseDisplayColorForUnsetMaterials)
       {
-        Rhino.Display.Color4f objectColor = GetObjectColor(rhinoObject);
-        return CreateSolidColorMaterial(objectColor);
+        System.Drawing.Color objectColor = GetObjectColor(rhinoObject);
+        return GetSolidColorMaterial(objectColor);
       }
       else if (material == null)
       {
@@ -241,13 +276,13 @@ namespace Export_glTF
       return materialIndex;
     }
 
-    int CreateSolidColorMaterial(Rhino.Display.Color4f color)
+    public int GetSolidColorMaterial(System.Drawing.Color color)
     {
       glTFLoader.Schema.Material material = new glTFLoader.Schema.Material()
       {
         PbrMetallicRoughness = new glTFLoader.Schema.MaterialPbrMetallicRoughness()
         {
-          BaseColorFactor = color.ToFloatArray(),
+          BaseColorFactor = new Rhino.Display.Color4f(color).ToFloatArray(),
         },
         DoubleSided = !options.CullBackfaces,
       };
@@ -255,17 +290,17 @@ namespace Export_glTF
       return dummy.Materials.AddAndReturnIndex(material);
     }
 
-    Rhino.Display.Color4f GetObjectColor(Rhino.DocObjects.RhinoObject rhinoObject)
+    public System.Drawing.Color GetObjectColor(Rhino.DocObjects.RhinoObject rhinoObject)
     {
       if (rhinoObject.Attributes.ColorSource == Rhino.DocObjects.ObjectColorSource.ColorFromLayer)
       {
         int layerIndex = rhinoObject.Attributes.LayerIndex;
 
-        return new Rhino.Display.Color4f(rhinoObject.Document.Layers[layerIndex].Color);
+        return rhinoObject.Document.Layers[layerIndex].Color;
       }
       else
       {
-        return new Rhino.Display.Color4f(rhinoObject.Attributes.ObjectColor);
+        return rhinoObject.Attributes.ObjectColor;
       }
     }
 
