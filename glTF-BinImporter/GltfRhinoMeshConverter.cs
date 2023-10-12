@@ -13,6 +13,12 @@ namespace Import_glTF
     public List<Rhino.Geometry.Point2f[]> TextureMappings;
   }
 
+  struct GltfCurvePair
+  {
+    public Rhino.Geometry.Curve Curve;
+    public Rhino.Display.Color4f? Color;
+  }
+
   class GltfMeshHolder
   {
     public GltfMeshHolder(GltfRhinoConverter converter, Rhino.RhinoDoc doc, string name)
@@ -28,7 +34,7 @@ namespace Import_glTF
 
     private List<GltfMeshMaterialPair> meshMaterialPairs = new List<GltfMeshMaterialPair>();
     private List<Rhino.Geometry.PointCloud> pointClouds = new List<Rhino.Geometry.PointCloud>();
-    private List<Rhino.Geometry.Curve> curves = new List<Rhino.Geometry.Curve>();
+    private List<GltfCurvePair> curves = new List<GltfCurvePair>();
 
     public void AddPrimitive(Rhino.Geometry.Mesh rhinoMesh, int? materialIndex, List<Rhino.Geometry.Point2f[]> textureMappings)
     {
@@ -45,9 +51,13 @@ namespace Import_glTF
       pointClouds.Add(pointCloud);
     }
 
-    public void AddCurvePrimitive(Rhino.Geometry.Curve curve)
+    public void AddCurvePrimitive(Rhino.Geometry.Curve curve, Rhino.Display.Color4f? color)
     {
-      curves.Add(curve);
+      curves.Add(new GltfCurvePair()
+      {
+        Curve = curve,
+        Color = color,
+      });
     }
 
     public void AddInstance(Rhino.Geometry.Transform transform, int? layerIdx)
@@ -127,9 +137,9 @@ namespace Import_glTF
         rhinoObject.CommitChanges();
       }
 
-      foreach(Rhino.Geometry.Curve crv in curves)
+      foreach(GltfCurvePair pair in curves)
       {
-        Rhino.Geometry.Curve dup = crv.DuplicateCurve();
+        Rhino.Geometry.Curve dup = pair.Curve.DuplicateCurve();
 
         if(dup == null)
         {
@@ -147,6 +157,12 @@ namespace Import_glTF
         if (layerIdx.HasValue)
         {
           rhinoObject.Attributes.LayerIndex = layerIdx.Value;
+        }
+
+        if(pair.Color.HasValue)
+        {
+          rhinoObject.Attributes.ColorSource = Rhino.DocObjects.ObjectColorSource.ColorFromObject;
+          rhinoObject.Attributes.ObjectColor = pair.Color.Value.AsSystemColor();
         }
 
         rhinoObject.CommitChanges();
@@ -189,13 +205,20 @@ namespace Import_glTF
         }
         else if (primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.LINES)
         {
+          Rhino.Display.Color4f? color = null;
+          if(primitive.Material.HasValue)
+          {
+            glTFLoader.Schema.Material material = converter.glTF.Materials[primitive.Material.Value];
+            color = material.PbrMetallicRoughness.BaseColorFactor.ToColor4f();
+          }
+
           Rhino.Geometry.Line[] lines = GetLines(primitive);
 
           if(lines != null)
           {
             foreach (var line in lines)
             {
-              meshHolder.AddCurvePrimitive(new Rhino.Geometry.LineCurve(line));
+              meshHolder.AddCurvePrimitive(new Rhino.Geometry.LineCurve(line), color);
             }
           }
         }
@@ -204,6 +227,13 @@ namespace Import_glTF
           primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.LINE_STRIP
           )
         {
+          Rhino.Display.Color4f? color = null;
+          if (primitive.Material.HasValue)
+          {
+            glTFLoader.Schema.Material material = converter.glTF.Materials[primitive.Material.Value];
+            color = material.PbrMetallicRoughness.BaseColorFactor.ToColor4f();
+          }
+
           Rhino.Geometry.Polyline pline = GetPolyline(primitive);
 
           if(pline != null)
@@ -213,7 +243,7 @@ namespace Import_glTF
               pline.Add(pline.First);
             }
 
-            meshHolder.AddCurvePrimitive(new Rhino.Geometry.PolylineCurve(pline));
+            meshHolder.AddCurvePrimitive(new Rhino.Geometry.PolylineCurve(pline), color);
           }
         }
         else

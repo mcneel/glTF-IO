@@ -13,7 +13,7 @@ namespace Import_glTF
   {
     public GltfRhinoConverter(glTFLoader.Schema.Gltf gltf, Rhino.RhinoDoc doc, string path)
     {
-      this.gltf = gltf;
+      glTF = gltf;
       this.doc = doc;
 
       this.path = path;
@@ -28,7 +28,12 @@ namespace Import_glTF
       GltfToDocumentScale = Rhino.Geometry.Transform.Scale(Rhino.Geometry.Point3d.Origin, scaleFactor);
     }
 
-    glTFLoader.Schema.Gltf gltf = null;
+    public glTFLoader.Schema.Gltf glTF
+    {
+      get;
+      private set;
+    } = null;
+
     Rhino.RhinoDoc doc = null;
 
     string path = "";
@@ -86,37 +91,37 @@ namespace Import_glTF
 
     public bool Convert()
     {
-      for (int i = 0; i < gltf.Buffers.Length; i++)
+      for (int i = 0; i < glTF.Buffers.Length; i++)
       {
-        buffers.Add(glTFLoader.Interface.LoadBinaryBuffer(gltf, i, path));
+        buffers.Add(glTFLoader.Interface.LoadBinaryBuffer(glTF, i, path));
       }
 
-      if (gltf.Images != null)
+      if (glTF.Images != null)
       {
-        for (int i = 0; i < gltf.Images.Length; i++)
+        for (int i = 0; i < glTF.Images.Length; i++)
         {
-          Stream stream = glTFLoader.Interface.OpenImageFile(gltf, i, path);
+          Stream stream = glTFLoader.Interface.OpenImageFile(glTF, i, path);
 
           System.Drawing.Bitmap bmp = new System.Drawing.Bitmap(stream);
 
-          string name = gltf.Images[i].Name;
+          string name = glTF.Images[i].Name;
 
           images.Add(new ImageHolder(this, bmp, name));
         }
       }
 
-      if (gltf.Materials != null)
+      if (glTF.Materials != null)
       {
-        for (int i = 0; i < gltf.Materials.Length; i++)
+        for (int i = 0; i < glTF.Materials.Length; i++)
         {
-          GltfRhinoMaterialConverter converter = new GltfRhinoMaterialConverter(gltf.Materials[i], doc, this);
+          GltfRhinoMaterialConverter converter = new GltfRhinoMaterialConverter(glTF.Materials[i], doc, this);
           materials.Add(converter.Convert());
         }
       }
 
-      for (int i = 0; i < gltf.Meshes.Length; i++)
+      for (int i = 0; i < glTF.Meshes.Length; i++)
       {
-        GltfRhinoMeshConverter converter = new GltfRhinoMeshConverter(gltf.Meshes[i], this, doc);
+        GltfRhinoMeshConverter converter = new GltfRhinoMeshConverter(glTF.Meshes[i], this, doc);
         meshHolders.Add(converter.Convert());
       }
 
@@ -129,9 +134,9 @@ namespace Import_glTF
     {
       HashSet<int> children = new HashSet<int>();
 
-      for (int i = 0; i < gltf.Nodes.Length; i++)
+      for (int i = 0; i < glTF.Nodes.Length; i++)
       {
-        glTFLoader.Schema.Node node = gltf.Nodes[i];
+        glTFLoader.Schema.Node node = glTF.Nodes[i];
 
         if (node.Children != null)
         {
@@ -144,7 +149,7 @@ namespace Import_glTF
 
       List<int> parents = new List<int>();
 
-      for (int i = 0; i < gltf.Nodes.Length; i++)
+      for (int i = 0; i < glTF.Nodes.Length; i++)
       {
         if (!children.Contains(i))
         {
@@ -154,7 +159,7 @@ namespace Import_glTF
 
       foreach (int parentIndex in parents)
       {
-        glTFLoader.Schema.Node parent = gltf.Nodes[parentIndex];
+        glTFLoader.Schema.Node parent = glTF.Nodes[parentIndex];
 
         AddNodeRecursive(parent, Rhino.Geometry.Transform.Identity, null);
       }
@@ -178,7 +183,7 @@ namespace Import_glTF
       {
         foreach (int childIndex in node.Children)
         {
-          glTFLoader.Schema.Node child = gltf.Nodes[childIndex];
+          glTFLoader.Schema.Node child = glTF.Nodes[childIndex];
 
           AddNodeRecursive(child, finalTransform, activeLayerIdx);
         }
@@ -342,7 +347,7 @@ namespace Import_glTF
 
     public Rhino.Render.RenderTexture GetRenderTexture(int textureIndex)
     {
-      glTFLoader.Schema.Texture texture = gltf.Textures[textureIndex];
+      glTFLoader.Schema.Texture texture = glTF.Textures[textureIndex];
 
       if(!texture.Source.HasValue)
       {
@@ -360,7 +365,7 @@ namespace Import_glTF
 
     public Rhino.Render.RenderTexture GetRenderTexture(int textureIndex, ArgbChannel channel)
     {
-      glTFLoader.Schema.Texture texture = gltf.Textures[textureIndex];
+      glTFLoader.Schema.Texture texture = glTF.Textures[textureIndex];
 
       if (!texture.Source.HasValue)
       {
@@ -407,7 +412,7 @@ namespace Import_glTF
       
       if(texture.Source.HasValue)
       {
-        glTFLoader.Schema.Image img = gltf.Images[texture.Source.Value];
+        glTFLoader.Schema.Image img = glTF.Images[texture.Source.Value];
 
         if(!string.IsNullOrEmpty(img.Name)) //then try the source image name
         {
@@ -454,12 +459,12 @@ namespace Import_glTF
         return null;
       }
 
-      if (index < 0 || index >= gltf.Accessors.Length)
+      if (index < 0 || index >= glTF.Accessors.Length)
       {
         return null;
       }
 
-      return gltf.Accessors[index.Value];
+      return glTF.Accessors[index.Value];
     }
 
     public glTFLoader.Schema.BufferView GetBufferView(int? index)
@@ -469,12 +474,12 @@ namespace Import_glTF
         return null;
       }
 
-      if (index < 0 || index >= gltf.BufferViews.Length)
+      if (index < 0 || index >= glTF.BufferViews.Length)
       {
         return null;
       }
 
-      return gltf.BufferViews[index.Value];
+      return glTF.BufferViews[index.Value];
     }
 
   }
