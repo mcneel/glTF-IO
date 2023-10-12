@@ -10,47 +10,53 @@ namespace Import_glTF
   {
     public Rhino.Geometry.Mesh RhinoMesh;
     public int? MaterialIndex;
-    public string Name;
     public List<Rhino.Geometry.Point2f[]> TextureMappings;
   }
 
-  struct GltfPointCloudHolder
+  struct GltfCurvePair
   {
-    public string Name;
-    public Rhino.Geometry.PointCloud PointCloud;
+    public Rhino.Geometry.Curve Curve;
+    public Rhino.Display.Color4f? Color;
   }
 
   class GltfMeshHolder
   {
-    public GltfMeshHolder(GltfRhinoConverter converter, Rhino.RhinoDoc doc)
+    public GltfMeshHolder(GltfRhinoConverter converter, Rhino.RhinoDoc doc, string name)
     {
       this.converter = converter;
       this.doc = doc;
+      this.name = name;
     }
 
+    private string name = null;
     private GltfRhinoConverter converter = null;
     private Rhino.RhinoDoc doc = null;
 
     private List<GltfMeshMaterialPair> meshMaterialPairs = new List<GltfMeshMaterialPair>();
-    private List<GltfPointCloudHolder> pointCloudHolders = new List<GltfPointCloudHolder>();
+    private List<Rhino.Geometry.PointCloud> pointClouds = new List<Rhino.Geometry.PointCloud>();
+    private List<GltfCurvePair> curves = new List<GltfCurvePair>();
 
-    public void AddPrimitive(Rhino.Geometry.Mesh rhinoMesh, int? materialIndex, string name, List<Rhino.Geometry.Point2f[]> textureMappings)
+    public void AddPrimitive(Rhino.Geometry.Mesh rhinoMesh, int? materialIndex, List<Rhino.Geometry.Point2f[]> textureMappings)
     {
       meshMaterialPairs.Add(new GltfMeshMaterialPair()
       {
         RhinoMesh = rhinoMesh,
         MaterialIndex = materialIndex,
-        Name = name,
         TextureMappings = textureMappings,
       });
     }
 
-    public void AddPointCloudPrimitive(Rhino.Geometry.PointCloud pointCloud, string name)
+    public void AddPointCloudPrimitive(Rhino.Geometry.PointCloud pointCloud)
     {
-      pointCloudHolders.Add(new GltfPointCloudHolder()
+      pointClouds.Add(pointCloud);
+    }
+
+    public void AddCurvePrimitive(Rhino.Geometry.Curve curve, Rhino.Display.Color4f? color)
+    {
+      curves.Add(new GltfCurvePair()
       {
-        Name = name,
-        PointCloud = pointCloud,
+        Curve = curve,
+        Color = color,
       });
     }
 
@@ -74,7 +80,7 @@ namespace Import_glTF
         {
           rhinoObject.RenderMaterial = material;
           rhinoObject.Attributes.MaterialSource = Rhino.DocObjects.ObjectMaterialSource.MaterialFromObject;
-          rhinoObject.Attributes.Name = pair.Name;
+          rhinoObject.Attributes.Name = name;
 
           if(layerIdx.HasValue)
           {
@@ -106,9 +112,9 @@ namespace Import_glTF
 
       }
 
-      foreach (GltfPointCloudHolder holder in pointCloudHolders)
+      foreach (Rhino.Geometry.PointCloud pc in pointClouds)
       {
-        Rhino.Geometry.PointCloud pointCloud = holder.PointCloud.Duplicate() as Rhino.Geometry.PointCloud;
+        Rhino.Geometry.PointCloud pointCloud = pc.Duplicate() as Rhino.Geometry.PointCloud;
 
         if (pointCloud == null)
         {
@@ -121,11 +127,42 @@ namespace Import_glTF
 
         Rhino.DocObjects.RhinoObject rhinoObject = doc.Objects.Find(objectId);
 
-        rhinoObject.Attributes.Name = holder.Name;
+        rhinoObject.Attributes.Name = name;
 
         if (layerIdx.HasValue)
         {
           rhinoObject.Attributes.LayerIndex = layerIdx.Value;
+        }
+
+        rhinoObject.CommitChanges();
+      }
+
+      foreach(GltfCurvePair pair in curves)
+      {
+        Rhino.Geometry.Curve dup = pair.Curve.DuplicateCurve();
+
+        if(dup == null)
+        {
+          continue;
+        }
+
+        dup.Transform(totalTransform);
+
+        Guid objectId = doc.Objects.Add(dup);
+
+        Rhino.DocObjects.RhinoObject rhinoObject = doc.Objects.Find(objectId);
+
+        rhinoObject.Attributes.Name = name;
+
+        if (layerIdx.HasValue)
+        {
+          rhinoObject.Attributes.LayerIndex = layerIdx.Value;
+        }
+
+        if(pair.Color.HasValue)
+        {
+          rhinoObject.Attributes.ColorSource = Rhino.DocObjects.ObjectColorSource.ColorFromObject;
+          rhinoObject.Attributes.ObjectColor = pair.Color.Value.AsSystemColor();
         }
 
         rhinoObject.CommitChanges();
@@ -153,7 +190,7 @@ namespace Import_glTF
 
     public GltfMeshHolder Convert()
     {
-      GltfMeshHolder meshHolder = new GltfMeshHolder(converter, doc);
+      GltfMeshHolder meshHolder = new GltfMeshHolder(converter, doc, mesh.Name);
 
       foreach (var primitive in mesh.Primitives)
       {
@@ -161,23 +198,68 @@ namespace Import_glTF
         {
           Rhino.Geometry.PointCloud pointCloud = GetPointCloud(primitive);
 
-          if (pointCloud == null)
+          if (pointCloud != null)
           {
-            continue;
+            meshHolder.AddPointCloudPrimitive(pointCloud);
+          }
+        }
+        else if (primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.LINES)
+        {
+          Rhino.Display.Color4f? color = null;
+          if (primitive.Material.HasValue)
+          {
+            glTFLoader.Schema.Material material = converter.glTF.Materials[primitive.Material.Value];
+            if (material.PbrMetallicRoughness != null && material.PbrMetallicRoughness.BaseColorFactor != null)
+            {
+              color = material.PbrMetallicRoughness.BaseColorFactor.ToColor4f();
+            }
           }
 
-          meshHolder.AddPointCloudPrimitive(pointCloud, mesh.Name);
+          Rhino.Geometry.Line[] lines = GetLines(primitive);
+
+          if(lines != null)
+          {
+            foreach (var line in lines)
+            {
+              meshHolder.AddCurvePrimitive(new Rhino.Geometry.LineCurve(line), color);
+            }
+          }
+        }
+        else if (
+          primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.LINE_LOOP ||
+          primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.LINE_STRIP
+          )
+        {
+          Rhino.Display.Color4f? color = null;
+          if (primitive.Material.HasValue)
+          {
+            glTFLoader.Schema.Material material = converter.glTF.Materials[primitive.Material.Value];
+            if (material.PbrMetallicRoughness != null && material.PbrMetallicRoughness.BaseColorFactor != null)
+            {
+              color = material.PbrMetallicRoughness.BaseColorFactor.ToColor4f();
+            }
+          }
+
+          Rhino.Geometry.Polyline pline = GetPolyline(primitive);
+
+          if(pline != null)
+          {
+            if(primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.LINE_LOOP)
+            {
+              pline.Add(pline.First);
+            }
+
+            meshHolder.AddCurvePrimitive(new Rhino.Geometry.PolylineCurve(pline), color);
+          }
         }
         else
         {
           Rhino.Geometry.Mesh rhinoMesh = GetMesh(primitive, out List<Rhino.Geometry.Point2f[]> textureMappings);
 
-          if(rhinoMesh == null)
+          if(rhinoMesh != null)
           {
-            continue;
+            meshHolder.AddPrimitive(rhinoMesh, primitive.Material, textureMappings);
           }
-
-          meshHolder.AddPrimitive(rhinoMesh, primitive.Material, mesh.Name, textureMappings);
         }
       }
 
@@ -207,14 +289,14 @@ namespace Import_glTF
       }
       else
       {
-        if (!AttemptGetVertexFloats(primitive, out List<Rhino.Geometry.Point3d> points))
+        if (!AttemptGetVertexFloats(primitive, out Rhino.Geometry.Point3d[] points))
         {
           return null;
         }
 
         Rhino.Geometry.PointCloud pointCloud = new Rhino.Geometry.PointCloud();
 
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < points.Length; i++)
         {
           pointCloud.Add(points[i]);
         }
@@ -324,68 +406,137 @@ namespace Import_glTF
 
     private bool HandleIndices(glTFLoader.Schema.MeshPrimitive primitive, Rhino.Geometry.Mesh rhinoMesh)
     {
-      if(primitive.Indices.HasValue)
+      if (primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.TRIANGLES)
       {
-        return AttemptConvertIndices(primitive, rhinoMesh);
-      }
-      else if (primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.TRIANGLES)
-      {
-        return HandleTrianglesMode(rhinoMesh);
+        return HandleTrianglesMode(primitive, rhinoMesh);
       }
       else if(primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.TRIANGLE_STRIP)
       {
-        return HandleTriangleStripMode(rhinoMesh);
+        return HandleTriangleStripMode(primitive, rhinoMesh);
       }
       else if(primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.TRIANGLE_FAN)
       {
-        return HandleTriangleFanMode(rhinoMesh);
+        return HandleTriangleFanMode(primitive, rhinoMesh);
       }
 
       return false;
     }
 
-    private bool HandleTriangleFanMode(Rhino.Geometry.Mesh rhinoMesh)
+    private bool HandleTriangleFanMode(glTFLoader.Schema.MeshPrimitive primitive, Rhino.Geometry.Mesh rhinoMesh)
     {
-      for (int i = 1; i < rhinoMesh.Vertices.Count - 1; i++)
+      if(primitive.Indices.HasValue)
       {
-        Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(0, i, i + 1);
+        if(!AttemptGetIndices(primitive, out uint[] indices))
+        {
+          return false;
+        }
 
-        rhinoMesh.Faces.AddFace(face);
+        for (int i = 1; i < indices.Length - 1; i++)
+        {
+          int indexOne = (int)indices[0];
+          int indexTwo = (int)indices[i];
+          int indexThree = (int)indices[i + 1];
+
+          if (ValidFace(indexOne, indexTwo, indexThree, rhinoMesh.Vertices.Count))
+          {
+            rhinoMesh.Faces.AddFace(indexOne, indexTwo, indexThree);
+          }
+        }
+
+        return true;
       }
+      else
+      {
+        for (int i = 1; i < rhinoMesh.Vertices.Count - 1; i++)
+        {
+          Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(0, i, i + 1);
 
-      return true;
+          rhinoMesh.Faces.AddFace(face);
+        }
+
+        return true;
+      }
     }
 
-    private bool HandleTriangleStripMode(Rhino.Geometry.Mesh rhinoMesh)
+    private bool HandleTriangleStripMode(glTFLoader.Schema.MeshPrimitive primitive, Rhino.Geometry.Mesh rhinoMesh)
     {
-      for(int i = 0; i < rhinoMesh.Vertices.Count - 2; i++)
+      if (primitive.Indices.HasValue)
       {
-        Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(i, i + 1, i + 2);
+        if(!AttemptGetIndices(primitive, out uint[] indices))
+        {
+          return false;
+        }
 
-        rhinoMesh.Faces.AddFace(face);
+        for (int i = 0; i < indices.Length - 2; i++)
+        {
+          int indexOne = (int)indices[i];
+          int indexTwo = (int)indices[i + (1 + i % 2)];
+          int indexThree = (int)indices[i + (2 - i % 2)];
+
+          if (ValidFace(indexOne, indexTwo, indexThree, rhinoMesh.Vertices.Count))
+          {
+            rhinoMesh.Faces.AddFace(indexOne, indexTwo, indexThree);
+          }
+        }
+
+        return true;
       }
+      else
+      {
+        for (int i = 0; i < rhinoMesh.Vertices.Count - 2; i++)
+        {
+          Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(i, i + (1 + i % 2), i + (2 - i % 2));
 
-      return true;
+          rhinoMesh.Faces.AddFace(face);
+        }
+
+        return true;
+      }
     }
 
-    private bool HandleTrianglesMode(Rhino.Geometry.Mesh rhinoMesh)
+    private bool HandleTrianglesMode(glTFLoader.Schema.MeshPrimitive primitive, Rhino.Geometry.Mesh rhinoMesh)
     {
-      int count = rhinoMesh.Vertices.Count / 3;
-
-      for(int i = 0; i < count; i++)
+      if(primitive.Indices.HasValue)
       {
-        int index = i * 3;
+        if(!AttemptGetIndices(primitive, out uint[] indices))
+        {
+          return false;
+        }
 
-        Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(index, index + 1, index + 2);
+        int faces = indices.Length / 3;
+        for (int i = 0; i < faces; i++)
+        {
+          int index = i * 3;
 
-        rhinoMesh.Faces.AddFace(face);
+          int indexOne = (int)indices[index + 0];
+          int indexTwo = (int)indices[index + 1];
+          int indexThree = (int)indices[index + 2];
+
+          if (ValidFace(indexOne, indexTwo, indexThree, rhinoMesh.Vertices.Count))
+          {
+            rhinoMesh.Faces.AddFace(indexOne, indexTwo, indexThree);
+          }
+        }
+
+        return true;
       }
+      else
+      {
+        int count = rhinoMesh.Vertices.Count / 3;
+        for (int i = 0; i < count; i++)
+        {
+          Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(i + 1, i + 2, 0);
 
-      return true;
+          rhinoMesh.Faces.AddFace(face);
+        }
+        return true;
+      }
     }
 
-    private bool AttemptConvertIndices(glTFLoader.Schema.MeshPrimitive primitive, Rhino.Geometry.Mesh rhinoMesh)
+    private bool AttemptGetIndices(glTFLoader.Schema.MeshPrimitive primitive, out uint[] indices)
     {
+      indices = null;
+
       glTFLoader.Schema.Accessor indicesAccessor = converter.GetAccessor(primitive.Indices);
 
       if (indicesAccessor == null)
@@ -412,7 +563,7 @@ namespace Import_glTF
       int indicesComponentsCount = ComponentsCount(indicesAccessor.Type);
       int indicesComponentSize = ComponentSize(indicesAccessor.ComponentType);
 
-      List<uint> indices = new List<uint>();
+      List<uint> indicesList = new List<uint>();
 
       for (int i = 0; i < indicesAccessor.Count; i++)
       {
@@ -425,48 +576,33 @@ namespace Import_glTF
           if (indicesAccessor.ComponentType == glTFLoader.Schema.Accessor.ComponentTypeEnum.UNSIGNED_BYTE)
           {
             byte b = indicesBuffer[location];
-            indices.Add(b);
+            indicesList.Add(b);
           }
           else if (indicesAccessor.ComponentType == glTFLoader.Schema.Accessor.ComponentTypeEnum.UNSIGNED_SHORT)
           {
             ushort s = BitConverter.ToUInt16(indicesBuffer, location);
-            indices.Add(s);
+            indicesList.Add(s);
           }
           else if (indicesAccessor.ComponentType == glTFLoader.Schema.Accessor.ComponentTypeEnum.UNSIGNED_INT)
           {
             uint u = BitConverter.ToUInt32(indicesBuffer, location);
-            indices.Add(u);
+            indicesList.Add(u);
           }
         }
-
       }
 
-      int faces = indices.Count / 3;
-      for (int i = 0; i < faces; i++)
-      {
-        int index = i * 3;
-
-        int indexOne = (int)indices[index + 0];
-        int indexTwo = (int)indices[index + 1];
-        int indexThree = (int)indices[index + 2];
-
-        if (ValidFace(indexOne, indexTwo, indexThree, rhinoMesh.Vertices.Count))
-        {
-          rhinoMesh.Faces.AddFace(indexOne, indexTwo, indexThree);
-        }
-      }
-
+      indices = indicesList.ToArray();
       return true;
     }
 
     private bool AttemptConvertVertices(glTFLoader.Schema.MeshPrimitive primitive, Rhino.Geometry.Mesh rhinoMesh)
     {
-      if (!AttemptGetVertexFloats(primitive, out List<Rhino.Geometry.Point3d> vertices))
+      if (!AttemptGetVertexFloats(primitive, out Rhino.Geometry.Point3d[] vertices))
       {
         return false;
       }
 
-      for (int i = 0; i < vertices.Count; i++)
+      for (int i = 0; i < vertices.Length; i++)
       {
         rhinoMesh.Vertices.Add(vertices[i]);
       }
@@ -474,9 +610,9 @@ namespace Import_glTF
       return true;
     }
 
-    private bool AttemptGetVertexFloats(glTFLoader.Schema.MeshPrimitive primitive, out List<Rhino.Geometry.Point3d> vertices)
+    private bool AttemptGetVertexFloats(glTFLoader.Schema.MeshPrimitive primitive, out Rhino.Geometry.Point3d[] vertices)
     {
-      vertices = new List<Rhino.Geometry.Point3d>();
+      vertices = null;
 
       glTFLoader.Schema.Accessor vertexAcessor = null;
 
@@ -527,14 +663,17 @@ namespace Import_glTF
         }
       }
 
+      List<Rhino.Geometry.Point3d> vlist = new List<Rhino.Geometry.Point3d>();
+
       int count = floats.Count / 3;
 
       for (int i = 0; i < count; i++)
       {
         int index = i * 3;
-        vertices.Add(new Rhino.Geometry.Point3d(floats[index], floats[index + 1], floats[index + 2]));
+        vlist.Add(new Rhino.Geometry.Point3d(floats[index], floats[index + 1], floats[index + 2]));
       }
 
+      vertices = vlist.ToArray();
       return true;
     }
 
@@ -886,6 +1025,82 @@ namespace Import_glTF
       }
 
       return false;
+    }
+
+    Rhino.Geometry.Line[] GetLines(glTFLoader.Schema.MeshPrimitive primitive)
+    {
+      if(!AttemptGetVertexFloats(primitive, out Rhino.Geometry.Point3d[] vertices))
+      {
+        return null;
+      }
+
+      List<Rhino.Geometry.Line> lines = new List<Rhino.Geometry.Line>();
+
+      if (AttemptGetIndices(primitive, out uint[] indices))
+      {
+        int count = indices.Length / 2;
+        for (int i = 0; i < count; i++)
+        {
+          uint idxOne = indices[2 * i + 0];
+          uint idxTwo = indices[2 * i + 1];
+
+          if (idxOne < vertices.Length && idxTwo < vertices.Length)
+          {
+            Rhino.Geometry.Line line = new Rhino.Geometry.Line(vertices[idxOne], vertices[idxTwo]);
+            if (line.IsValid)
+            {
+              lines.Add(line);
+            }
+          }
+        }
+      }
+      else
+      {
+        int count = vertices.Length / 2;
+        for(int i = 0; i < count; i++)
+        {
+          Rhino.Geometry.Line line = new Rhino.Geometry.Line(vertices[2 * i], vertices[2 * i + 1]);
+          if (line.IsValid)
+          {
+            lines.Add(line);
+          }
+        }
+      }
+
+      return lines.ToArray();
+    }
+
+    Rhino.Geometry.Polyline GetPolyline(glTFLoader.Schema.MeshPrimitive primitive)
+    {
+      if (!AttemptGetVertexFloats(primitive, out Rhino.Geometry.Point3d[] vertices))
+      {
+        return null;
+      }
+
+      Rhino.Geometry.Polyline polyline = new Rhino.Geometry.Polyline();
+
+      if (AttemptGetIndices(primitive, out uint[] indices))
+      {
+        polyline.Add(vertices[indices[0]]);
+
+        for (int i = 1; i < indices.Length; i++)
+        {
+          polyline.Add(vertices[indices[i]]);
+        }
+      }
+      else
+      {
+        polyline.AddRange(vertices);
+      }
+
+      polyline.RemoveNearlyEqualSubsequentPoints(Rhino.RhinoMath.SqrtEpsilon);
+
+      if(!polyline.IsValid)
+      {
+        return null;
+      }
+
+      return polyline;
     }
 
   }

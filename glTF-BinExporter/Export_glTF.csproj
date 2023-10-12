@@ -46,7 +46,9 @@
     <Compile Include="gltfSchemaSceneDummy.cs" />
     <Compile Include="GlTFUtils.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="RhinoCurveGltfConverter.cs" />
     <Compile Include="RhinoDocGltfConverter.cs" />
+    <Compile Include="RhinoGeometryGltfConverter.cs" />
     <Compile Include="RhinoMaterialGltfConverter.cs" />
     <Compile Include="RhinoMeshGltfConverter.cs" />
     <Compile Include="RhinoPointCloudGltfConverter.cs" />
