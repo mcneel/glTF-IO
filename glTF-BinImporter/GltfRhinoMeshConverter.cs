@@ -206,10 +206,13 @@ namespace Import_glTF
         else if (primitive.Mode == glTFLoader.Schema.MeshPrimitive.ModeEnum.LINES)
         {
           Rhino.Display.Color4f? color = null;
-          if(primitive.Material.HasValue)
+          if (primitive.Material.HasValue)
           {
             glTFLoader.Schema.Material material = converter.glTF.Materials[primitive.Material.Value];
-            color = material.PbrMetallicRoughness.BaseColorFactor.ToColor4f();
+            if (material.PbrMetallicRoughness != null && material.PbrMetallicRoughness.BaseColorFactor != null)
+            {
+              color = material.PbrMetallicRoughness.BaseColorFactor.ToColor4f();
+            }
           }
 
           Rhino.Geometry.Line[] lines = GetLines(primitive);
@@ -231,7 +234,10 @@ namespace Import_glTF
           if (primitive.Material.HasValue)
           {
             glTFLoader.Schema.Material material = converter.glTF.Materials[primitive.Material.Value];
-            color = material.PbrMetallicRoughness.BaseColorFactor.ToColor4f();
+            if (material.PbrMetallicRoughness != null && material.PbrMetallicRoughness.BaseColorFactor != null)
+            {
+              color = material.PbrMetallicRoughness.BaseColorFactor.ToColor4f();
+            }
           }
 
           Rhino.Geometry.Polyline pline = GetPolyline(primitive);
