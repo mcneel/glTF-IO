@@ -46,10 +46,14 @@ namespace Export_glTF
 
     private void PreprocessMesh(Mesh rhinoMesh)
     {
+      Transform transform = converter.DocumentToGltfScale;
+
       if (options.MapRhinoZToGltfY)
       {
-        rhinoMesh.Transform(Constants.ZtoYUp);
+        transform = transform * Constants.ZtoYUp;
       }
+
+      rhinoMesh.Transform(transform);
 
       Parallel.For(0, rhinoMesh.TextureCoordinates.Count, i =>
       {

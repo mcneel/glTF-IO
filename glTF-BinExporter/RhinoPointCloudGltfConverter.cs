@@ -10,8 +10,8 @@ namespace Export_glTF
 {
   class RhinoPointCloudGltfConverter : RhinoGeometryGltfConverter
   {
-    public RhinoPointCloudGltfConverter(RhinoObject rhinoObject, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
-      : base(rhinoObject, options, binary, dummy, binaryBuffer)
+    public RhinoPointCloudGltfConverter(RhinoDocGltfConverter converter, RhinoObject rhinoObject, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
+      : base(converter, rhinoObject, options, binary, dummy, binaryBuffer)
     {
     }
 
@@ -24,10 +24,14 @@ namespace Export_glTF
         return -1;
       }
 
+      Rhino.Geometry.Transform transform = Converter.DocumentToGltfScale;
+
       if (Options.MapRhinoZToGltfY)
       {
-        pointCloud.Transform(Constants.ZtoYUp);
+        transform = transform * Constants.ZtoYUp;
       }
+
+      pointCloud.Transform(transform);
 
       int? vertexAccessorIdx = null;
       int? normalAccessorIdx = null;

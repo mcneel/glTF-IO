@@ -8,14 +8,21 @@ namespace Export_glTF
 {
   class RhinoGeometryGltfConverter
   {
-    public RhinoGeometryGltfConverter(Rhino.DocObjects.RhinoObject rhinoObject, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
+    public RhinoGeometryGltfConverter(RhinoDocGltfConverter converter, Rhino.DocObjects.RhinoObject rhinoObject, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
     {
+      Converter = converter;
       RhinoObject = rhinoObject;
       Options = options;
       Binary = binary;
       Dummy = dummy;
       BinaryBuffer = binaryBuffer;
     }
+
+    protected RhinoDocGltfConverter Converter
+    {
+      get;
+      private set;
+    } = null;
 
     protected Rhino.DocObjects.RhinoObject RhinoObject
     {
