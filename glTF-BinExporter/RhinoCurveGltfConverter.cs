@@ -9,12 +9,10 @@ namespace Export_glTF
   internal class RhinoCurveGltfConverter : RhinoGeometryGltfConverter
   {
     public RhinoCurveGltfConverter(RhinoDocGltfConverter converter, Rhino.DocObjects.RhinoObject rhinoObject, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
-      : base(rhinoObject, options, binary, dummy, binaryBuffer)
+      : base(converter, rhinoObject, options, binary, dummy, binaryBuffer)
     {
-      this.converter = converter;
-    }
 
-    RhinoDocGltfConverter converter = null;
+    }
 
     public int AddCurve()
     {
@@ -25,12 +23,16 @@ namespace Export_glTF
         return -1;
       }
 
+      Rhino.Geometry.Transform transform = Converter.DocumentToGltfScale;
+
       if(Options.MapRhinoZToGltfY)
       {
-        curve.Transform(Constants.ZtoYUp);
+        transform = transform * Constants.ZtoYUp;
       }
 
-      if(!curve.TryGetPolyline(out Rhino.Geometry.Polyline polyline))
+      curve.Transform(transform);
+
+      if (!curve.TryGetPolyline(out Rhino.Geometry.Polyline polyline))
       {
         return -1;
       }
@@ -43,8 +45,8 @@ namespace Export_glTF
         return -1;
       }
 
-      System.Drawing.Color color = converter.GetObjectColor(RhinoObject);
-      int materialIdx = converter.GetSolidColorMaterial(color);
+      System.Drawing.Color color = Converter.GetObjectColor(RhinoObject);
+      int materialIdx = Converter.GetSolidColorMaterial(color);
 
       glTFLoader.Schema.MeshPrimitive primitive = new glTFLoader.Schema.MeshPrimitive()
       {

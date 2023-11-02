@@ -29,6 +29,11 @@ namespace Export_glTF
       this.binary = binary;
       this.objects = objects;
       this.workflow = workflow;
+
+      //glTF is in meters
+      //https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
+      double scaleFactor = Rhino.RhinoMath.UnitScale(doc.ModelUnitSystem, UnitSystem.Meters);
+      DocumentToGltfScale = Rhino.Geometry.Transform.Scale(Rhino.Geometry.Point3d.Origin, scaleFactor);
     }
 
     public RhinoDocGltfConverter(glTFExportOptions options, bool binary, RhinoDoc doc, Rhino.Render.LinearWorkflow workflow)
@@ -38,6 +43,11 @@ namespace Export_glTF
       this.binary = binary;
       this.objects = doc.Objects.ToArray();
       this.workflow = null;
+
+      //glTF is in meters
+      //https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#coordinate-system-and-units
+      double scaleFactor = Rhino.RhinoMath.UnitScale(doc.ModelUnitSystem, UnitSystem.Meters);
+      DocumentToGltfScale = Rhino.Geometry.Transform.Scale(Rhino.Geometry.Point3d.Origin, scaleFactor);
     }
 
     private RhinoDoc doc = null;
@@ -69,6 +79,9 @@ namespace Export_glTF
         return defaultMaterial;
       }
     }
+
+    public readonly Rhino.Geometry.Transform DocumentToGltfScale;
+
     public glTFLoader.Schema.Gltf ConvertToGltf()
     {
       dummy.Scene = 0;
@@ -104,7 +117,7 @@ namespace Export_glTF
 
       foreach (Rhino.DocObjects.RhinoObject rhinoObject in pointClouds)
       {
-        RhinoPointCloudGltfConverter converter = new RhinoPointCloudGltfConverter(rhinoObject, options, binary, dummy, binaryBuffer);
+        RhinoPointCloudGltfConverter converter = new RhinoPointCloudGltfConverter(this, rhinoObject, options, binary, dummy, binaryBuffer);
         int meshIndex = converter.AddPointCloud();
 
         if (meshIndex != -1)
