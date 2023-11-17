@@ -67,9 +67,9 @@ namespace Export_glTF
     {
       List<glTFLoader.Schema.MeshPrimitive> primitives = new List<glTFLoader.Schema.MeshPrimitive>();
 
-      foreach (MeshMaterialPair pair in exportData.Meshes)
+      foreach (MeshMaterialPair meshMaterialPair in exportData.Meshes)
       {
-        Mesh rhinoMesh = pair.Mesh;
+        Mesh rhinoMesh = meshMaterialPair.Mesh;
 
         PreprocessMesh(rhinoMesh);
 
@@ -84,6 +84,8 @@ namespace Export_glTF
         bool exportNormals = ExportNormals(rhinoMesh);
         bool exportTextureCoordinates = ExportTextureCoordinates(rhinoMesh);
         bool exportVertexColors = ExportVertexColors(rhinoMesh);
+
+        Dictionary<int, int> mappingChannelToTexCoordIdx = new Dictionary<int, int>();
 
         glTFLoader.Schema.MeshPrimitive primitive = new glTFLoader.Schema.MeshPrimitive()
         {
@@ -107,9 +109,57 @@ namespace Export_glTF
 
         if (exportTextureCoordinates)
         {
-          int textureCoordinatesAccessorIdx = GetTextureCoordinatesAccessor(rhinoMesh.TextureCoordinates);
+          int[] channels = exportData.Object.GetTextureChannels();
 
-          primitive.Attributes.Add(Constants.TexCoord0AttributeTag, textureCoordinatesAccessorIdx);
+          if (channels == null || channels.Length == 0)
+          {
+            int textureCoordinatesAccessorIdx = GetTextureCoordinatesAccessor(rhinoMesh.TextureCoordinates.ToArray());
+
+            primitive.Attributes.Add(Constants.TexCoord0AttributeTag, textureCoordinatesAccessorIdx);
+
+            //1 is Rhino default mapping channel, 0 in glTF since that's the only one
+            mappingChannelToTexCoordIdx.Add(1, 0);
+          }
+          else
+          {
+            Dictionary<int, Point2f[]> textureCoordinates = new Dictionary<int, Point2f[]>();
+
+            foreach (int channel in channels)
+            {
+              Rhino.Render.TextureMapping mapping = exportData.Object.GetTextureMapping(channel, out Transform objectTransform);
+
+              if (mapping == null)
+              {
+                continue;
+              }
+
+              Rhino.Render.CachedTextureCoordinates cachedCoordinates = rhinoMesh.GetCachedTextureCoordinates(mapping.Id);
+              if (cachedCoordinates == null)
+              {
+                rhinoMesh.SetCachedTextureCoordinates(mapping, ref objectTransform);
+                cachedCoordinates = rhinoMesh.GetCachedTextureCoordinates(mapping.Id);
+              }
+
+              if (cachedCoordinates != null)
+              {
+                textureCoordinates.Add(channel, ToTextureCoordinateList(cachedCoordinates));
+              }
+            }
+
+            int texCoordIdx = 0;
+            foreach (var textureCoordinatePair in textureCoordinates)
+            {
+              int textureCoordinatesAccessorIdx = GetTextureCoordinatesAccessor(textureCoordinatePair.Value);
+
+              string tag = Constants.TexCoordAttributeTagStem + texCoordIdx.ToString();
+
+              primitive.Attributes.Add(tag, textureCoordinatesAccessorIdx);
+
+              mappingChannelToTexCoordIdx.Add(textureCoordinatePair.Key, texCoordIdx);
+
+              texCoordIdx++;
+            }
+          }
         }
 
         if (exportVertexColors)
@@ -148,7 +198,7 @@ namespace Export_glTF
           };
         }
 
-        primitive.Material = converter.GetMaterial(pair.Material, exportData.Object);
+        primitive.Material = converter.GetMaterial(meshMaterialPair.Material, mappingChannelToTexCoordIdx, exportData.Object);
 
         primitives.Add(primitive);
       }
@@ -505,7 +555,7 @@ namespace Export_glTF
       return bytes;
     }
 
-    int GetTextureCoordinatesAccessor(MeshTextureCoordinateList textureCoordinates)
+    int GetTextureCoordinatesAccessor(Point2f[] textureCoordinates)
     {
       int? textureCoordinatesBufferViewIdx = GetTextureCoordinatesBufferView(textureCoordinates, out Point2f min, out Point2f max, out int countCoordinates);
 
@@ -523,7 +573,7 @@ namespace Export_glTF
       return dummy.Accessors.AddAndReturnIndex(textureCoordinatesAccessor);
     }
 
-    int? GetTextureCoordinatesBufferView(MeshTextureCoordinateList textureCoordinates, out Point2f min, out Point2f max, out int countCoordinates)
+    int? GetTextureCoordinatesBufferView(Point2f[] textureCoordinates, out Point2f min, out Point2f max, out int countCoordinates)
     {
       if (options.UseDracoCompression)
       {
@@ -557,12 +607,12 @@ namespace Export_glTF
         Target = glTFLoader.Schema.BufferView.TargetEnum.ARRAY_BUFFER,
       };
 
-      countCoordinates = textureCoordinates.Count;
+      countCoordinates = textureCoordinates.Length;
 
       return dummy.BufferViews.AddAndReturnIndex(textureCoordinatesBufferView);
     }
 
-    int GetTextureCoordinatesBuffer(MeshTextureCoordinateList textureCoordinates, out Point2f min, out Point2f max, out int byteLength)
+    int GetTextureCoordinatesBuffer(Point2f[] textureCoordinates, out Point2f min, out Point2f max, out int byteLength)
     {
       byte[] bytes = GetTextureCoordinatesBytes(textureCoordinates, out min, out max);
 
@@ -577,14 +627,14 @@ namespace Export_glTF
       return dummy.Buffers.AddAndReturnIndex(textureCoordinatesBuffer);
     }
 
-    private byte[] GetTextureCoordinatesBytes(MeshTextureCoordinateList textureCoordinates, out Point2f min, out Point2f max)
+    private byte[] GetTextureCoordinatesBytes(Point2f[] textureCoordinates, out Point2f min, out Point2f max)
     {
       min = new Point2f(float.PositiveInfinity, float.PositiveInfinity);
       max = new Point2f(float.NegativeInfinity, float.NegativeInfinity);
 
-      float[] coordinates = new float[textureCoordinates.Count * 2];
+      float[] coordinates = new float[textureCoordinates.Length * 2];
 
-      for(int i = 0; i < textureCoordinates.Count; i++)
+      for(int i = 0; i < textureCoordinates.Length; i++)
       {
         Point2f coordinate = textureCoordinates[i];
 
@@ -817,6 +867,18 @@ namespace Export_glTF
         bufferIndex = dummy.Buffers.AddAndReturnIndex(buffer);
         byteOffset = 0;
       }
+    }
+
+    Point2f[] ToTextureCoordinateList(Rhino.Render.CachedTextureCoordinates ct)
+    {
+      Point2f[] pts = new Point2f[ct.Count];
+
+      Parallel.For(0, ct.Count, i => {
+        Point3d pt = ct[i];
+        pts[i] = new Point2f(pt.X, -pt.Y);
+      });
+
+      return pts.ToArray();
     }
 
   }

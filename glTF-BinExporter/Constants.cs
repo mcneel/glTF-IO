@@ -49,6 +49,7 @@ namespace Export_glTF
     public const string TextBufferHeader = "data:application/octet-stream;base64,";
     public const string PositionAttributeTag = "POSITION";
     public const string NormalAttributeTag = "NORMAL";
+    public const string TexCoordAttributeTagStem = "TEXCOORD_";
     public const string TexCoord0AttributeTag = "TEXCOORD_0";
     public const string VertexColorAttributeTag = "COLOR_0";
   }
