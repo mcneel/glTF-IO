@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -18,7 +19,7 @@ namespace Export_glTF
 
   class RhinoMaterialGltfConverter
   {
-    public RhinoMaterialGltfConverter(glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer, Rhino.Render.RenderMaterial renderMaterial, Rhino.Render.LinearWorkflow workflow)
+    public RhinoMaterialGltfConverter(glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer, Rhino.Render.RenderMaterial renderMaterial, Dictionary<int, int> mappingToGltfTexCoord, Rhino.Render.LinearWorkflow workflow)
     {
       this.options = options;
       this.binary = binary;
@@ -27,6 +28,7 @@ namespace Export_glTF
       this.rhinoMaterial = renderMaterial.ToMaterial(Rhino.Render.RenderTexture.TextureGeneration.Allow);
       this.renderMaterial = renderMaterial;
       this.workflow = workflow;
+      this.mappingToGltfTexCoord = mappingToGltfTexCoord;
     }
 
     private glTFExportOptions options = null;
@@ -37,6 +39,8 @@ namespace Export_glTF
 
     private Rhino.DocObjects.Material rhinoMaterial = null;
     private Rhino.Render.RenderMaterial renderMaterial = null;
+
+    private Dictionary<int, int> mappingToGltfTexCoord = null;
 
     public int AddMaterial()
     {
@@ -264,7 +268,7 @@ namespace Export_glTF
       glTFLoader.Schema.TextureInfo textureInfo = new glTFLoader.Schema.TextureInfo()
       {
         Index = textureIndex,
-        TexCoord = 0,
+        TexCoord = GetTexCoord(texture.MappingChannelId),
       };
 
       glTFExtensions.KHR_texture_transform transform = GetTextureTransform(texture);
@@ -371,6 +375,14 @@ namespace Export_glTF
         }
 
         gltfMaterial.PbrMetallicRoughness.BaseColorTexture = info;
+        if(baseColorTexture != null)
+        {
+          info.TexCoord = GetTexCoord(baseColorTexture.GetMappingChannel());
+        }
+        else if(alphaTexture != null)
+        {
+          info.TexCoord = GetTexCoord(alphaTexture.GetMappingChannel());
+        }
 
         if (hasAlpha)
         {
@@ -588,7 +600,7 @@ namespace Export_glTF
       glTFLoader.Schema.TextureInfo rc = new glTFLoader.Schema.TextureInfo()
       {
         Index = textureIdx,
-        TexCoord = 0
+        TexCoord = GetTexCoord(texture.MappingChannelId),
       };
 
       glTFExtensions.KHR_texture_transform transform = GetTextureTransform(texture);
@@ -615,7 +627,7 @@ namespace Export_glTF
       glTFLoader.Schema.MaterialNormalTextureInfo rc = new glTFLoader.Schema.MaterialNormalTextureInfo()
       {
         Index = textureIdx,
-        TexCoord = 0,
+        TexCoord = GetTexCoord(normalTexture.MappingChannelId),
         Scale = weight,
       };
 
@@ -653,7 +665,7 @@ namespace Export_glTF
       glTFLoader.Schema.MaterialOcclusionTextureInfo rc = new glTFLoader.Schema.MaterialOcclusionTextureInfo()
       {
         Index = textureIdx,
-        TexCoord = 0,
+        TexCoord = GetTexCoord(occlusionTexture.MappingChannelId),
         Strength = GetTextureWeight(occlusionTexture),
       };
 
@@ -773,6 +785,15 @@ namespace Export_glTF
             glTFExtensions.KHR_texture_transform.Tag, roughnessTransform
           }
         };
+      }
+
+      if(hasMetalTexture)
+      {
+        textureInfo.TexCoord = GetTexCoord(metalTexture.MappingChannelId);
+      }
+      else if(hasRoughnessTexture)
+      {
+        textureInfo.TexCoord = GetTexCoord(roughnessTexture.MappingChannelId);
       }
 
       return textureInfo;
@@ -949,6 +970,16 @@ namespace Export_glTF
       repeat = new Rhino.Geometry.Vector2d(sx, sy);
 
       return true;
+    }
+
+    private int GetTexCoord(int mappingChannel)
+    {
+      if(mappingToGltfTexCoord.TryGetValue(mappingChannel, out int texCoord))
+      {
+        return texCoord;
+      }
+
+      return 0; //default
     }
 
   }
