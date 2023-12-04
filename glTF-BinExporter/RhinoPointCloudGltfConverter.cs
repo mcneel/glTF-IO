@@ -10,7 +10,7 @@ namespace Export_glTF
 {
   class RhinoPointCloudGltfConverter : RhinoGeometryGltfConverter
   {
-    public RhinoPointCloudGltfConverter(RhinoDocGltfConverter converter, RhinoObject rhinoObject, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
+    public RhinoPointCloudGltfConverter(RhinoDocGltfConverter converter, RhinoObject rhinoObject, FileGltfWriteOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
       : base(converter, rhinoObject, options, binary, dummy, binaryBuffer)
     {
     }
@@ -26,7 +26,7 @@ namespace Export_glTF
 
       Rhino.Geometry.Transform transform = Converter.DocumentToGltfScale;
 
-      if (Options.MapRhinoZToGltfY)
+      if (Options.MapZToY)
       {
         transform = transform * Constants.ZtoYUp;
       }
@@ -323,7 +323,7 @@ namespace Export_glTF
           IncludeTextureCoordinates = false,
           PositionQuantizationBits = Options.DracoQuantizationBitsPosition,
           NormalQuantizationBits = Options.DracoQuantizationBitsNormal,
-          TextureCoordintateQuantizationBits = Options.DracoQuantizationBitsTexture
+          TextureCoordintateQuantizationBits = Options.DracoQuantizationBitsTextureCoordinate
       });
 
       if(dracoCompression == null)

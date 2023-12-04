@@ -1,3 +1,4 @@
+using Rhino.FileIO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,7 @@ namespace Export_glTF
 {
   internal class RhinoCurveGltfConverter : RhinoGeometryGltfConverter
   {
-    public RhinoCurveGltfConverter(RhinoDocGltfConverter converter, Rhino.DocObjects.RhinoObject rhinoObject, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
+    public RhinoCurveGltfConverter(RhinoDocGltfConverter converter, Rhino.DocObjects.RhinoObject rhinoObject, FileGltfWriteOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
       : base(converter, rhinoObject, options, binary, dummy, binaryBuffer)
     {
 
@@ -25,7 +26,7 @@ namespace Export_glTF
 
       Rhino.Geometry.Transform transform = Converter.DocumentToGltfScale;
 
-      if(Options.MapRhinoZToGltfY)
+      if(Options.MapZToY)
       {
         transform = transform * Constants.ZtoYUp;
       }
