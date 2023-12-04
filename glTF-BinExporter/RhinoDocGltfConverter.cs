@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Rhino;
+using Rhino.FileIO;
 
 namespace Export_glTF
 {
@@ -28,7 +29,7 @@ namespace Export_glTF
 
   class RhinoDocGltfConverter
   {
-    public RhinoDocGltfConverter(glTFExportOptions options, bool binary, RhinoDoc doc, IEnumerable<Rhino.DocObjects.RhinoObject> objects, Rhino.Render.LinearWorkflow workflow)
+    public RhinoDocGltfConverter(FileGltfWriteOptions options, bool binary, RhinoDoc doc, IEnumerable<Rhino.DocObjects.RhinoObject> objects, Rhino.Render.LinearWorkflow workflow)
     {
       this.doc = doc;
       this.options = options;
@@ -47,7 +48,7 @@ namespace Export_glTF
     private IEnumerable<Rhino.DocObjects.RhinoObject> objects = null;
 
     private bool binary = false;
-    private glTFExportOptions options = null;
+    private FileGltfWriteOptions options = null;
     private Rhino.Render.LinearWorkflow workflow = null;
 
     private Dictionary<Guid, List<ExportedMaterialAndMapping>> materialsMap = new Dictionary<Guid, List<ExportedMaterialAndMapping>>();
@@ -435,7 +436,7 @@ namespace Export_glTF
         if (
           item.Object.ObjectType == Rhino.DocObjects.ObjectType.SubD &&
           item.Object.Geometry is Rhino.Geometry.SubD subd &&
-          options.SubDExportMode == SubDMode.ControlNet
+          options.SubDMeshType == FileGltfWriteOptions.SubDMeshing.ControlNet
           )
         {
           Rhino.Geometry.Mesh mesh = Rhino.Geometry.Mesh.CreateFromSubDControlNet(subd);

@@ -11,6 +11,11 @@ using System.Linq;
 
 namespace Export_glTF
 {
+  /// <summary>
+  /// This is flipped from Rhino.FileIO.File.FileGltfWriteOptions.SubDMeshing
+  /// This was here first but when FileGltfWriteOptions.SubDMeshing it was made to match the ObjWriteOptions
+  /// to prevent confusion in the public interface. Now this exists for clarity when casting from the saved app setting integer.
+  /// </summary>
   public enum SubDMode : int
   {
     ControlNet = 0,
@@ -53,7 +58,16 @@ namespace Export_glTF
         }
       }
 
-      glTFExportOptions exportOptions = Export_glTFPlugin.GetSavedOptions();
+      FileGltfWriteOptions exportOptions = null;
+
+      if (options.OptionsDictionary.Count > 0)
+      {
+        exportOptions = GetDictionaryOptions(options.OptionsDictionary);
+      }
+      else
+      {
+        exportOptions = Export_glTFPlugin.GetSavedOptions();
+      }
 
       IEnumerable<Rhino.DocObjects.RhinoObject> objects = GetObjectsToExport(doc, options);
 
@@ -86,7 +100,7 @@ namespace Export_glTF
       exportOptionsDialog.ShowModal(Rhino.UI.RhinoEtoApp.MainWindow);
     }
 
-    public static bool DoExport(string fileName, glTFExportOptions options, bool binary, RhinoDoc doc, IEnumerable<Rhino.DocObjects.RhinoObject> rhinoObjects, Rhino.Render.LinearWorkflow workflow)
+    public static bool DoExport(string fileName, FileGltfWriteOptions options, bool binary, RhinoDoc doc, IEnumerable<Rhino.DocObjects.RhinoObject> rhinoObjects, Rhino.Render.LinearWorkflow workflow)
     {
       RhinoDocGltfConverter converter = new RhinoDocGltfConverter(options, binary, doc, rhinoObjects, workflow);
       glTFLoader.Schema.Gltf gltf = converter.ConvertToGltf();
@@ -259,17 +273,19 @@ namespace Export_glTF
       set => Instance.Settings.SetBool(ExportLayersDialogKey, value);
     }
 
-    public static glTFExportOptions GetSavedOptions()
+    static FileGltfWriteOptions GetSavedOptions()
     {
-      return new glTFExportOptions()
+      FileGltfWriteOptions.SubDMeshing subDMode = SubDExportMode == SubDMode.Surface ? FileGltfWriteOptions.SubDMeshing.Surface : FileGltfWriteOptions.SubDMeshing.ControlNet;
+
+      return new FileGltfWriteOptions()
       {
-        MapRhinoZToGltfY = MapRhinoZToGltfY,
+        MapZToY = MapRhinoZToGltfY,
         ExportMaterials = ExportMaterials,
         CullBackfaces = CullBackfaces,
         UseDisplayColorForUnsetMaterials = UseDisplayColorForUnsetMaterials,
 
-        SubDExportMode = SubDExportMode,
-        SubDLevel = SubDLevel,
+        SubDMeshType = subDMode,
+        SubDSurfaceMeshingDensity = SubDLevel,
 
         ExportTextureCoordinates = ExportTextureCoordinates,
         ExportVertexNormals = ExportVertexNormals,
@@ -280,11 +296,100 @@ namespace Export_glTF
         DracoCompressionLevel = DracoCompressionLevel,
         DracoQuantizationBitsPosition = DracoQuantizationBitsPosition,
         DracoQuantizationBitsNormal = DracoQuantizationBitsNormal,
-        DracoQuantizationBitsTexture = DracoQuantizationBitsTexture,
+        DracoQuantizationBitsTextureCoordinate = DracoQuantizationBitsTexture,
+
+        ExportLayers = ExportLayers
       };
     }
 
     #endregion
+
+    FileGltfWriteOptions GetDictionaryOptions(Rhino.Collections.ArchivableDictionary dict)
+    {
+      FileGltfWriteOptions rc = new FileGltfWriteOptions();
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.MapZToY), out bool mapYToZ))
+      {
+        rc.MapZToY = mapYToZ;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.ExportMaterials), out bool exportMaterials))
+      {
+        rc.ExportMaterials = exportMaterials;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.CullBackfaces), out bool cullBackfaces))
+      {
+        rc.CullBackfaces = cullBackfaces;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.UseDisplayColorForUnsetMaterials), out bool useDisplayColor))
+      {
+        rc.UseDisplayColorForUnsetMaterials = useDisplayColor;
+      }
+
+      if (dict.TryGetInteger(nameof(FileGltfWriteOptions.SubDMeshType), out int meshType))
+      {
+        rc.SubDMeshType = (FileGltfWriteOptions.SubDMeshing)meshType;
+      }
+
+      if (dict.TryGetInteger(nameof(FileGltfWriteOptions.SubDSurfaceMeshingDensity), out int meshDensity))
+      {
+        rc.SubDSurfaceMeshingDensity = meshDensity;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.ExportTextureCoordinates), out bool exportTextureCoordinates))
+      {
+        rc.ExportTextureCoordinates = exportTextureCoordinates;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.ExportVertexNormals), out bool exportVertexNormals))
+      {
+        rc.ExportVertexNormals = exportVertexNormals;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.ExportOpenMeshes), out bool exportOpenMeshes))
+      {
+        rc.ExportOpenMeshes = exportOpenMeshes;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.ExportVertexColors), out bool exportVertexColors))
+      {
+        rc.ExportVertexColors = exportVertexColors;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.UseDracoCompression), out bool useDracoCompression))
+      {
+        rc.UseDracoCompression = useDracoCompression;
+      }
+
+      if (dict.TryGetInteger(nameof(FileGltfWriteOptions.DracoCompressionLevel), out int dracoCompressionLevel))
+      {
+        rc.DracoCompressionLevel = dracoCompressionLevel;
+      }
+
+      if (dict.TryGetInteger(nameof(FileGltfWriteOptions.DracoQuantizationBitsPosition), out int positionBits))
+      {
+        rc.DracoQuantizationBitsPosition = positionBits;
+      }
+
+      if (dict.TryGetInteger(nameof(FileGltfWriteOptions.DracoQuantizationBitsNormal), out int normalBits))
+      {
+        rc.DracoQuantizationBitsNormal = normalBits;
+      }
+
+      if (dict.TryGetInteger(nameof(FileGltfWriteOptions.DracoQuantizationBitsTextureCoordinate), out int textureCoordinateBits))
+      {
+        rc.DracoQuantizationBitsTextureCoordinate = textureCoordinateBits;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.ExportLayers), out bool exportLayers))
+      {
+        rc.ExportLayers = exportLayers;
+      }
+
+      return rc;
+    }
 
   }
 }

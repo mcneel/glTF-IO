@@ -1,3 +1,4 @@
+using Rhino.FileIO;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,7 +9,7 @@ namespace Export_glTF
 {
   class RhinoGeometryGltfConverter
   {
-    public RhinoGeometryGltfConverter(RhinoDocGltfConverter converter, Rhino.DocObjects.RhinoObject rhinoObject, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
+    public RhinoGeometryGltfConverter(RhinoDocGltfConverter converter, Rhino.DocObjects.RhinoObject rhinoObject, FileGltfWriteOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
     {
       Converter = converter;
       RhinoObject = rhinoObject;
@@ -30,7 +31,7 @@ namespace Export_glTF
       private set;
     } = null;
 
-    protected glTFExportOptions Options
+    protected FileGltfWriteOptions Options
     {
       get;
       private set;

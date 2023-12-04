@@ -1,3 +1,4 @@
+using Rhino.FileIO;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -19,7 +20,7 @@ namespace Export_glTF
 
   class RhinoMaterialGltfConverter
   {
-    public RhinoMaterialGltfConverter(glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer, Rhino.Render.RenderMaterial renderMaterial, Dictionary<int, int> mappingToGltfTexCoord, Rhino.Render.LinearWorkflow workflow)
+    public RhinoMaterialGltfConverter(FileGltfWriteOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer, Rhino.Render.RenderMaterial renderMaterial, Dictionary<int, int> mappingToGltfTexCoord, Rhino.Render.LinearWorkflow workflow)
     {
       this.options = options;
       this.binary = binary;
@@ -31,7 +32,7 @@ namespace Export_glTF
       this.mappingToGltfTexCoord = mappingToGltfTexCoord;
     }
 
-    private glTFExportOptions options = null;
+    private FileGltfWriteOptions options = null;
     private bool binary = false;
     private gltfSchemaDummy dummy = null;
     private List<byte> binaryBuffer = null;
