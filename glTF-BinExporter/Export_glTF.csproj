@@ -40,7 +40,6 @@
     <Compile Include="..\..\..\..\version.cs" Link="Properties\version.cs" />
     <Compile Include="Constants.cs" />
     <Compile Include="Export_glTFPlugin.cs" />
-    <Compile Include="glTFExportOptions.cs" />
     <Compile Include="glTFExportOptionsDialog.cs" />
     <Compile Include="gltfSchemaDummy.cs" />
     <Compile Include="gltfSchemaSceneDummy.cs" />

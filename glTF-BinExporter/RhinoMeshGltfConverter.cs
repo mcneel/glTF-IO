@@ -13,7 +13,7 @@ namespace Export_glTF
 {
   class RhinoMeshGltfConverter
   {
-    public RhinoMeshGltfConverter(RhinoDocGltfConverter converter, ObjectExportData exportData, glTFExportOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
+    public RhinoMeshGltfConverter(RhinoDocGltfConverter converter, ObjectExportData exportData, FileGltfWriteOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
     {
       this.converter = converter;
       this.exportData = exportData;
@@ -25,7 +25,7 @@ namespace Export_glTF
 
     private RhinoDocGltfConverter converter = null;
     private ObjectExportData exportData = null;
-    private glTFExportOptions options = null;
+    private FileGltfWriteOptions options = null;
     private bool binary = false;
     private gltfSchemaDummy dummy = null;
     private List<byte> binaryBuffer = null;
@@ -48,7 +48,7 @@ namespace Export_glTF
     {
       Transform transform = converter.DocumentToGltfScale;
 
-      if (options.MapRhinoZToGltfY)
+      if (options.MapZToY)
       {
         transform = transform * Constants.ZtoYUp;
       }
@@ -234,7 +234,7 @@ namespace Export_glTF
             IncludeVertexColors = ExportVertexColors(rhinoMesh),
             PositionQuantizationBits = options.DracoQuantizationBitsPosition,
             NormalQuantizationBits = options.DracoQuantizationBitsNormal,
-            TextureCoordintateQuantizationBits = options.DracoQuantizationBitsTexture
+            TextureCoordintateQuantizationBits = options.DracoQuantizationBitsTextureCoordinate
           }
       );
 
