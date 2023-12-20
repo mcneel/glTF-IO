@@ -269,7 +269,7 @@ namespace Import_glTF
         }
         else
         {
-          pbr.SetParameter(PhysicallyBased.Opacity, transmission.TransmissionFactor);
+          pbr.SetParameter(PhysicallyBased.Opacity, 1.0 - transmission.TransmissionFactor);
         }
       }
     }
