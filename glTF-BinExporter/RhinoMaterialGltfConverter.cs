@@ -910,22 +910,25 @@ namespace Export_glTF
 
     glTFExtensions.KHR_texture_transform GetTextureTransform(Rhino.DocObjects.Texture texture)
     {
+      Rhino.Geometry.Transform uvw = texture.UvwTransform;
       if(!texture.ApplyUvwTransform)
       {
-        return null;
+        uvw = Rhino.Geometry.Transform.Identity;
       }
 
-      if(texture.UvwTransform.IsIdentity)
+      Rhino.Geometry.Transform toGltfTextureSpace = Rhino.Geometry.Transform.Identity;
+      toGltfTextureSpace[1, 1] = -1;
+      toGltfTextureSpace[1, 3] = 1;
+
+      Rhino.Geometry.Transform gltfTextureTransform = toGltfTextureSpace * uvw;
+
+      if(gltfTextureTransform.IsIdentity)
       {
         return null;
       }
 
-      Rhino.Geometry.Transform inv = Rhino.Geometry.Transform.Translation(new Rhino.Geometry.Vector3d(0.0, -1.0, 0.0));
-
-      Rhino.Geometry.Transform gltfTextureTransform = inv * texture.UvwTransform;
-
       //Decompose to glTF
-      if (!DecomposeGltfMappingTransform(gltfTextureTransform, out Rhino.Geometry.Vector2d translation, out double angle, out Rhino.Geometry.Vector2d scale))
+      if (!DecomposeGltfMappingTransform(gltfTextureTransform, out Rhino.Geometry.Vector2d offset, out double rotation, out Rhino.Geometry.Vector2d scale))
       {
         return null;
       }
@@ -934,11 +937,11 @@ namespace Export_glTF
 
       textureTransform.Offset = new float[]
       {
-        (float)translation.X,
-        (float)translation.Y
+        (float)offset.X,
+        (float)offset.Y
       };
 
-      textureTransform.Rotation = (float)angle;
+      textureTransform.Rotation = (float)rotation;
 
       textureTransform.Scale = new float[]
       {
@@ -949,26 +952,18 @@ namespace Export_glTF
       return textureTransform;
     }
 
-    public static bool DecomposeGltfMappingTransform(Rhino.Geometry.Transform textureTransform, out Rhino.Geometry.Vector2d translation, out double rotation, out Rhino.Geometry.Vector2d repeat)
+    public static bool DecomposeGltfMappingTransform(Rhino.Geometry.Transform textureTransform, out Rhino.Geometry.Vector2d offset, out double rotation, out Rhino.Geometry.Vector2d scale)
     {
-      translation = Rhino.Geometry.Vector2d.Unset;
-      rotation = Rhino.RhinoMath.UnsetValue;
-      repeat = Rhino.Geometry.Vector2d.Unset;
+      offset = new Rhino.Geometry.Vector2d(textureTransform.M03, textureTransform.M13);
 
-      double sx = Math.Sqrt(textureTransform[0, 0] * textureTransform[0, 0] + textureTransform[0, 1] * textureTransform[0, 1]);
-      double sy = Math.Sqrt(textureTransform[1, 0] * textureTransform[1, 0] + textureTransform[1, 1] * textureTransform[1, 1]);
+      rotation = Math.Atan2(textureTransform.M01, textureTransform.M00);
 
-      if (Math.Abs(sy) < Rhino.RhinoMath.ZeroTolerance || Math.Abs(sx) < Rhino.RhinoMath.ZeroTolerance)
-      {
-        return false;
-      }
+      double cosTheta = Math.Cos(rotation);
 
-      double sT = -(textureTransform[0, 1] / sx);
-      double cT = textureTransform[0, 0] / sx;
+      double sx = textureTransform.M00 / cosTheta;
+      double sy = textureTransform.M11 / cosTheta;
 
-      translation = new Rhino.Geometry.Vector2d(textureTransform[0, 3], -textureTransform[1, 3]);
-      rotation = Math.Atan2(sT, cT);
-      repeat = new Rhino.Geometry.Vector2d(sx, sy);
+      scale = new Rhino.Geometry.Vector2d(sx, sy);
 
       return true;
     }
