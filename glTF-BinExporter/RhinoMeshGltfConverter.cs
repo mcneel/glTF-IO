@@ -54,13 +54,47 @@ namespace Export_glTF
       }
 
       rhinoMesh.Transform(transform);
+    }
 
-      Parallel.For(0, rhinoMesh.TextureCoordinates.Count, i =>
+    Dictionary<int, Point2f[]> GetTexCoords(Mesh mesh)
+    {
+      Dictionary<int, Point2f[]> rc = new Dictionary<int, Point2f[]>();
+
+      int[] channels = exportData.Object.GetTextureChannels();
+
+      if (channels == null || channels.Length == 0)
       {
-        Point2f tc = rhinoMesh.TextureCoordinates[i];
-        tc.Y = -tc.Y;
-        rhinoMesh.TextureCoordinates[i] = tc;
-      });
+        if (mesh.TextureCoordinates.Count > 0) //Only if there are texture coordinates to export
+        {
+          rc.Add(1, mesh.TextureCoordinates.ToArray());
+        }
+      }
+      else
+      {
+        foreach (int channel in channels)
+        {
+          Rhino.Render.TextureMapping mapping = exportData.Object.GetTextureMapping(channel, out Transform objectTransform);
+
+          if (mapping == null)
+          {
+            continue;
+          }
+
+          Rhino.Render.CachedTextureCoordinates cachedCoordinates = mesh.GetCachedTextureCoordinates(mapping.Id);
+          if (cachedCoordinates == null)
+          {
+            mesh.SetCachedTextureCoordinates(mapping, ref objectTransform);
+            cachedCoordinates = mesh.GetCachedTextureCoordinates(mapping.Id);
+          }
+
+          if (cachedCoordinates != null)
+          {
+            rc.Add(channel, ToTextureCoordinateList(cachedCoordinates));
+          }
+        }
+      }
+
+      return rc;
     }
 
     private List<glTFLoader.Schema.MeshPrimitive> GetPrimitives()
@@ -71,21 +105,23 @@ namespace Export_glTF
       {
         Mesh rhinoMesh = meshMaterialPair.Mesh;
 
+        //TexCoords need retrieved and cached before preprocessing the mesh
+        //So mapping transform accounts for the Z to Y Up transform and unit scale conversion
+        Dictionary<int, Point2f[]> textureCoordinates = GetTexCoords(rhinoMesh);
+
         PreprocessMesh(rhinoMesh);
 
         if (options.UseDracoCompression)
         {
-          if (!SetDracoGeometryInfo(rhinoMesh))
+          if (!SetDracoGeometryInfo(rhinoMesh, textureCoordinates))
           {
             continue;
           }
         }
 
         bool exportNormals = ExportNormals(rhinoMesh);
-        bool exportTextureCoordinates = ExportTextureCoordinates(rhinoMesh);
+        bool exportTextureCoordinates = ExportTextureCoordinates(textureCoordinates);
         bool exportVertexColors = ExportVertexColors(rhinoMesh);
-
-        Dictionary<int, int> mappingChannelToTexCoordIdx = new Dictionary<int, int>();
 
         glTFLoader.Schema.MeshPrimitive primitive = new glTFLoader.Schema.MeshPrimitive()
         {
@@ -107,58 +143,22 @@ namespace Export_glTF
           primitive.Attributes.Add(Constants.NormalAttributeTag, normalsAccessorIdx);
         }
 
+        Dictionary<int, int> mappingChannelToTexCoordIdx = new Dictionary<int, int>();
+
         if (exportTextureCoordinates)
         {
-          int[] channels = exportData.Object.GetTextureChannels();
-
-          if (channels == null || channels.Length == 0)
+          int texCoordIdx = 0;
+          foreach (var textureCoordinatePair in textureCoordinates)
           {
-            int textureCoordinatesAccessorIdx = GetTextureCoordinatesAccessor(rhinoMesh.TextureCoordinates.ToArray());
+            int textureCoordinatesAccessorIdx = GetTextureCoordinatesAccessor(textureCoordinatePair.Value);
 
-            primitive.Attributes.Add(Constants.TexCoord0AttributeTag, textureCoordinatesAccessorIdx);
+            string tag = Constants.TexCoordAttributeTagStem + texCoordIdx.ToString();
 
-            //1 is Rhino default mapping channel, 0 in glTF since that's the only one
-            mappingChannelToTexCoordIdx.Add(1, 0);
-          }
-          else
-          {
-            Dictionary<int, Point2f[]> textureCoordinates = new Dictionary<int, Point2f[]>();
+            primitive.Attributes.Add(tag, textureCoordinatesAccessorIdx);
 
-            foreach (int channel in channels)
-            {
-              Rhino.Render.TextureMapping mapping = exportData.Object.GetTextureMapping(channel, out Transform objectTransform);
+            mappingChannelToTexCoordIdx.Add(textureCoordinatePair.Key, texCoordIdx);
 
-              if (mapping == null)
-              {
-                continue;
-              }
-
-              Rhino.Render.CachedTextureCoordinates cachedCoordinates = rhinoMesh.GetCachedTextureCoordinates(mapping.Id);
-              if (cachedCoordinates == null)
-              {
-                rhinoMesh.SetCachedTextureCoordinates(mapping, ref objectTransform);
-                cachedCoordinates = rhinoMesh.GetCachedTextureCoordinates(mapping.Id);
-              }
-
-              if (cachedCoordinates != null)
-              {
-                textureCoordinates.Add(channel, ToTextureCoordinateList(cachedCoordinates));
-              }
-            }
-
-            int texCoordIdx = 0;
-            foreach (var textureCoordinatePair in textureCoordinates)
-            {
-              int textureCoordinatesAccessorIdx = GetTextureCoordinatesAccessor(textureCoordinatePair.Value);
-
-              string tag = Constants.TexCoordAttributeTagStem + texCoordIdx.ToString();
-
-              primitive.Attributes.Add(tag, textureCoordinatesAccessorIdx);
-
-              mappingChannelToTexCoordIdx.Add(textureCoordinatePair.Key, texCoordIdx);
-
-              texCoordIdx++;
-            }
+            texCoordIdx++;
           }
         }
 
@@ -211,9 +211,9 @@ namespace Export_glTF
       return rhinoMesh.Normals.Count > 0 && options.ExportVertexNormals;
     }
 
-    private bool ExportTextureCoordinates(Mesh rhinoMesh)
+    private bool ExportTextureCoordinates(Dictionary<int, Point2f[]>  textureCoordinates)
     {
-      return rhinoMesh.TextureCoordinates.Count > 0 && options.ExportTextureCoordinates;
+      return textureCoordinates.Count > 0 && options.ExportTextureCoordinates;
     }
 
     private bool ExportVertexColors(Mesh rhinoMesh)
@@ -221,7 +221,7 @@ namespace Export_glTF
       return rhinoMesh.VertexColors.Count > 0 && options.ExportVertexColors;
     }
 
-    private bool SetDracoGeometryInfo(Mesh rhinoMesh)
+    private bool SetDracoGeometryInfo(Mesh rhinoMesh, Dictionary<int, Point2f[]> textureCoordinates)
     {
       var dracoComp = DracoCompression.Compress(
           rhinoMesh,
@@ -230,7 +230,7 @@ namespace Export_glTF
             VertexColorFormat = DracoColorFormat.RGBA,
             CompressionLevel = options.DracoCompressionLevel,
             IncludeNormals = ExportNormals(rhinoMesh),
-            IncludeTextureCoordinates = ExportTextureCoordinates(rhinoMesh),
+            IncludeTextureCoordinates = ExportTextureCoordinates(textureCoordinates),
             IncludeVertexColors = ExportVertexColors(rhinoMesh),
             PositionQuantizationBits = options.DracoQuantizationBitsPosition,
             NormalQuantizationBits = options.DracoQuantizationBitsNormal,
@@ -872,10 +872,10 @@ namespace Export_glTF
     Point2f[] ToTextureCoordinateList(Rhino.Render.CachedTextureCoordinates ct)
     {
       Point2f[] pts = new Point2f[ct.Count];
-
+      
       Parallel.For(0, ct.Count, i => {
         Point3d pt = ct[i];
-        pts[i] = new Point2f(pt.X, -pt.Y);
+        pts[i] = new Point2f(pt.X, pt.Y);
       });
 
       return pts.ToArray();
