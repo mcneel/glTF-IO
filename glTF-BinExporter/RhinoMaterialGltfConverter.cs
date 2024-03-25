@@ -27,6 +27,14 @@ namespace Export_glTF
       this.dummy = dummy;
       this.binaryBuffer = binaryBuffer;
       this.rhinoMaterial = renderMaterial.ToMaterial(Rhino.Render.RenderTexture.TextureGeneration.Allow);
+
+      if (!rhinoMaterial.IsPhysicallyBased)
+      {
+        rhinoMaterial.ToPhysicallyBased();
+      }
+
+      this.pbr = rhinoMaterial.PhysicallyBased;
+
       this.renderMaterial = renderMaterial;
       this.workflow = workflow;
       this.mappingToGltfTexCoord = mappingToGltfTexCoord;
@@ -39,6 +47,7 @@ namespace Export_glTF
     private Rhino.Render.LinearWorkflow workflow = null;
 
     private Rhino.DocObjects.Material rhinoMaterial = null;
+    private Rhino.DocObjects.PhysicallyBasedMaterial pbr = null;
     private Rhino.Render.RenderMaterial renderMaterial = null;
 
     private Dictionary<int, int> mappingToGltfTexCoord = null;
@@ -53,13 +62,6 @@ namespace Export_glTF
         DoubleSided = !options.CullBackfaces,
         Extensions = new Dictionary<string, object>(),
       };
-
-      if (!rhinoMaterial.IsPhysicallyBased)
-      {
-        rhinoMaterial.ToPhysicallyBased();
-      }
-
-      Rhino.DocObjects.PhysicallyBasedMaterial pbr = rhinoMaterial.PhysicallyBased;
 
       // Textures
       Rhino.DocObjects.Texture metallicTexture = pbr.GetTexture(Rhino.DocObjects.TextureType.PBR_Metallic);
@@ -112,7 +114,7 @@ namespace Export_glTF
 
         float emissionMultiplier = 1.0f;
 
-        var param = rhinoMaterial.RenderMaterial.GetParameter("emission-multiplier");
+        var param = renderMaterial.GetParameter("emission-multiplier");
 
         if (param != null)
         {
@@ -127,7 +129,7 @@ namespace Export_glTF
       }
       else
       {
-        Rhino.Display.Color4f emissionColor = rhinoMaterial.PhysicallyBased.Emission;
+        Rhino.Display.Color4f emissionColor = pbr.Emission;
 
         if(emissionColor.R > 1.0f || emissionColor.G > 1.0f || emissionColor.B > 1.0f)
         {
@@ -313,17 +315,17 @@ namespace Export_glTF
       Rhino.DocObjects.Texture baseColorDoc = rhinoMaterial.GetTexture(Rhino.DocObjects.TextureType.PBR_BaseColor);
       Rhino.DocObjects.Texture alphaTextureDoc = rhinoMaterial.GetTexture(Rhino.DocObjects.TextureType.PBR_Alpha);
 
-      Rhino.Render.RenderTexture baseColorTexture = rhinoMaterial.RenderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrBaseColor);
-      Rhino.Render.RenderTexture alphaTexture = rhinoMaterial.RenderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrAlpha);
+      Rhino.Render.RenderTexture baseColorTexture = renderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrBaseColor);
+      Rhino.Render.RenderTexture alphaTexture = renderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrAlpha);
 
       bool baseColorLinear = baseColorTexture == null ? false : IsLinear(baseColorTexture);
 
       bool hasBaseColorTexture = baseColorDoc == null ? false : baseColorDoc.Enabled;
       bool hasAlphaTexture = alphaTextureDoc == null ? false : alphaTextureDoc.Enabled;
 
-      bool baseColorDiffuseAlphaForTransparency = rhinoMaterial.PhysicallyBased.UseBaseColorTextureAlphaForObjectAlphaTransparencyTexture;
+      bool baseColorDiffuseAlphaForTransparency = pbr.UseBaseColorTextureAlphaForObjectAlphaTransparencyTexture;
 
-      Rhino.Display.Color4f baseColor = rhinoMaterial.PhysicallyBased.BaseColor;
+      Rhino.Display.Color4f baseColor = pbr.BaseColor;
 
       if (workflow.PreProcessColors)
       {
@@ -337,10 +339,10 @@ namespace Export_glTF
           baseColor.R,
           baseColor.G,
           baseColor.B,
-          (float)rhinoMaterial.PhysicallyBased.Alpha,
+          (float)pbr.Alpha,
         };
 
-        if (rhinoMaterial.PhysicallyBased.Alpha == 1.0)
+        if (pbr.Alpha == 1.0)
         {
           gltfMaterial.AlphaMode = glTFLoader.Schema.Material.AlphaModeEnum.OPAQUE;
         }
@@ -354,7 +356,7 @@ namespace Export_glTF
         baseColorTexture = hasBaseColorTexture ? baseColorTexture : null;
         alphaTexture = hasAlphaTexture ? alphaTexture : null;
 
-        glTFLoader.Schema.TextureInfo info = CombineBaseColorAndAlphaTexture(baseColorTexture, alphaTexture, baseColorDiffuseAlphaForTransparency, baseColor, baseColorLinear, (float)rhinoMaterial.PhysicallyBased.Alpha, out bool hasAlpha); ;
+        glTFLoader.Schema.TextureInfo info = CombineBaseColorAndAlphaTexture(baseColorTexture, alphaTexture, baseColorDiffuseAlphaForTransparency, baseColor, baseColorLinear, (float)pbr.Alpha, out bool hasAlpha); ;
 
         glTFExtensions.KHR_texture_transform textureTransform = null;
 
@@ -448,14 +450,16 @@ namespace Export_glTF
 
       if (hasBaseColorTexture)
       {
-        baseColorEvaluator = baseColorTexture.CreateEvaluator(Rhino.Render.RenderTexture.TextureEvaluatorFlags.Normal);
+        //Disable local mapping since that's handled by the texture transform
+        baseColorEvaluator = baseColorTexture.CreateEvaluator(Rhino.Render.RenderTexture.TextureEvaluatorFlags.DisableLocalMapping);
       }
 
       Rhino.Render.TextureEvaluator alphaTextureEvaluator = null;
 
       if (hasAlphaTexture)
       {
-        alphaTextureEvaluator = alphaTexture.CreateEvaluator(Rhino.Render.RenderTexture.TextureEvaluatorFlags.Normal);
+        //Disable local mapping since that's handled by the texture transform
+        alphaTextureEvaluator = alphaTexture.CreateEvaluator(Rhino.Render.RenderTexture.TextureEvaluatorFlags.DisableLocalMapping);
       }
 
       Bitmap bitmap = new Bitmap(width, height);
@@ -687,8 +691,8 @@ namespace Export_glTF
 
     public glTFLoader.Schema.TextureInfo GetMetallicRoughnessTextureInfo(Rhino.DocObjects.Material rhinoMaterial)
     {
-      Rhino.DocObjects.Texture metalTexture = rhinoMaterial.PhysicallyBased.GetTexture(Rhino.DocObjects.TextureType.PBR_Metallic);
-      Rhino.DocObjects.Texture roughnessTexture = rhinoMaterial.PhysicallyBased.GetTexture(Rhino.DocObjects.TextureType.PBR_Roughness);
+      Rhino.DocObjects.Texture metalTexture = pbr.GetTexture(Rhino.DocObjects.TextureType.PBR_Metallic);
+      Rhino.DocObjects.Texture roughnessTexture = pbr.GetTexture(Rhino.DocObjects.TextureType.PBR_Roughness);
 
       bool hasMetalTexture = metalTexture == null ? false : metalTexture.Enabled;
       bool hasRoughnessTexture = roughnessTexture == null ? false : roughnessTexture.Enabled;
@@ -704,13 +708,13 @@ namespace Export_glTF
       // Get the textures
       if (hasMetalTexture)
       {
-        renderTextureMetal = rhinoMaterial.RenderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrMetallic);
+        renderTextureMetal = renderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrMetallic);
         renderTextureMetal.PixelSize(out mWidth, out mHeight, out _);
       }
 
       if (hasRoughnessTexture)
       {
-        renderTextureRoughness = rhinoMaterial.RenderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrRoughness);
+        renderTextureRoughness = renderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrRoughness);
         renderTextureRoughness.PixelSize(out rWidth, out rHeight, out _);
       }
 
@@ -723,13 +727,15 @@ namespace Export_glTF
       // Metal
       if (hasMetalTexture)
       {
-        evalMetal = renderTextureMetal.CreateEvaluator(Rhino.Render.RenderTexture.TextureEvaluatorFlags.Normal);
+        //Disable local mapping since that's handled by the texture transform
+        evalMetal = renderTextureMetal.CreateEvaluator(Rhino.Render.RenderTexture.TextureEvaluatorFlags.DisableLocalMapping);
       }
 
       // Roughness
       if (hasRoughnessTexture)
       {
-        evalRoughness = renderTextureRoughness.CreateEvaluator(Rhino.Render.RenderTexture.TextureEvaluatorFlags.Normal);
+        //Disable local mapping since that's handled by the texture transform
+        evalRoughness = renderTextureRoughness.CreateEvaluator(Rhino.Render.RenderTexture.TextureEvaluatorFlags.DisableLocalMapping);
       }
 
       // Copy Metal to the blue channel, roughness to the green
