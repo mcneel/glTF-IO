@@ -504,7 +504,13 @@ namespace Export_glTF
 
           hasAlpha = hasAlpha || alpha != 1.0f;
 
-          Rhino.Display.Color4f colorFinal = new Rhino.Display.Color4f(baseColorOut.R, baseColorOut.G, baseColorOut.B, alphaFinal);
+          //Clamp to deal with HDR values. Not scale.
+          float r = Math.Min(1.0f, Math.Max(0.0f, baseColorOut.R));
+          float g = Math.Min(1.0f, Math.Max(0.0f, baseColorOut.G));
+          float b = Math.Min(1.0f, Math.Max(0.0f, baseColorOut.B));
+          float a = Math.Min(1.0f, Math.Max(0.0f, alphaFinal));
+          
+          Rhino.Display.Color4f colorFinal = new Rhino.Display.Color4f(r, g, b, a);
 
           bitmap.SetPixel(i, j, colorFinal.AsSystemColor());
         }
