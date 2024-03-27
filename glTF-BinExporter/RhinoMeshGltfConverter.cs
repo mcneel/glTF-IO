@@ -73,24 +73,21 @@ namespace Export_glTF
       {
         foreach (int channel in channels)
         {
-          Rhino.Render.TextureMapping mapping = exportData.Object.GetTextureMapping(channel, out Transform objectTransform);
+          Rhino.Render.TextureMapping mapping = exportData.Object.GetTextureMapping(channel);
 
           if (mapping == null)
           {
             continue;
           }
 
-          Rhino.Render.CachedTextureCoordinates cachedCoordinates = mesh.GetCachedTextureCoordinates(mapping.Id);
-          if (cachedCoordinates == null)
+          Rhino.Render.CachedTextureCoordinates tc = mesh.GetCachedTextureCoordinates(mapping.Id);
+
+          if (tc == null) //No need to set if null, only the mappings used by the material are set in the cached texture coordinates
           {
-            mesh.SetCachedTextureCoordinates(mapping, ref objectTransform);
-            cachedCoordinates = mesh.GetCachedTextureCoordinates(mapping.Id);
+            continue;
           }
 
-          if (cachedCoordinates != null)
-          {
-            rc.Add(channel, ToTextureCoordinateList(cachedCoordinates));
-          }
+          rc.Add(channel, ToTextureCoordinateList(tc));
         }
       }
 
@@ -104,6 +101,11 @@ namespace Export_glTF
       foreach (MeshMaterialPair meshMaterialPair in exportData.Meshes)
       {
         Mesh rhinoMesh = meshMaterialPair.Mesh;
+
+        if(meshMaterialPair.Material != null)
+        {
+          rhinoMesh.SetCachedTextureCoordinatesFromMaterial(exportData.Object, meshMaterialPair.Material);
+        }
 
         //TexCoords need retrieved and cached before preprocessing the mesh
         //So mapping transform accounts for the Z to Y Up transform and unit scale conversion
@@ -198,7 +200,7 @@ namespace Export_glTF
           };
         }
 
-        primitive.Material = converter.GetMaterial(meshMaterialPair.Material, mappingChannelToTexCoordIdx, exportData.Object);
+        primitive.Material = converter.GetMaterial(meshMaterialPair, mappingChannelToTexCoordIdx, exportData.Object);
 
         primitives.Add(primitive);
       }
