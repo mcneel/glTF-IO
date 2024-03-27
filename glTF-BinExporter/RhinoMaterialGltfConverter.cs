@@ -307,7 +307,7 @@ namespace Export_glTF
       Rhino.Render.RenderTexture baseColorTexture = pair.RenderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrBaseColor);
       Rhino.Render.RenderTexture alphaTexture = pair.RenderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrAlpha);
 
-      bool baseColorLinear = baseColorTexture == null ? false : IsLinear(baseColorTexture);
+      bool baseColorLinear = baseColorTexture == null ? false : baseColorDoc.TreatAsLinear;
 
       bool hasBaseColorTexture = baseColorDoc == null ? false : baseColorDoc.Enabled;
       bool hasAlphaTexture = alphaTextureDoc == null ? false : alphaTextureDoc.Enabled;
@@ -387,18 +387,6 @@ namespace Export_glTF
       }
     }
 
-    bool IsLinear(Rhino.Render.RenderTexture texture)
-    {
-      Rhino.Render.CustomRenderContentAttribute[] attribs = texture.GetType().GetCustomAttributes(typeof(Rhino.Render.CustomRenderContentAttribute), false) as Rhino.Render.CustomRenderContentAttribute[];
-
-      if (attribs != null && attribs.Length > 0)
-      {
-        return attribs[0].IsLinear;
-      }
-
-      return texture.IsLinear();
-    }
-
     glTFLoader.Schema.TextureInfo CombineBaseColorAndAlphaTexture(Rhino.Render.RenderTexture baseColorTexture, Rhino.Render.RenderTexture alphaTexture, bool baseColorDiffuseAlphaForTransparency, Rhino.Display.Color4f baseColor, bool baseColorLinear, float alpha, out bool hasAlpha)
     {
       hasAlpha = false;
@@ -470,9 +458,9 @@ namespace Export_glTF
           {
             baseColorOut = baseColorEvaluator.GetColor(uvw, Rhino.Geometry.Vector3d.Zero, Rhino.Geometry.Vector3d.Zero);
 
-            if (baseColorLinear)
+            if(baseColorLinear)
             {
-              baseColorOut = Rhino.Display.Color4f.ApplyGamma(baseColorOut, workflow.PreProcessGamma);
+              baseColorOut = GlTFUtils.UnapplyGamma(baseColorOut, workflow.PreProcessGamma);
             }
           }
 
