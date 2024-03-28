@@ -477,9 +477,9 @@ namespace Export_glTF
             evaluatedAlpha = alphaColor.L;
           }
 
-          float alphaFinal = baseColor.A * evaluatedAlpha;
+          float alphaFinal = baseColorOut.A * evaluatedAlpha;
 
-          hasAlpha = hasAlpha || alpha != 1.0f;
+          hasAlpha = hasAlpha || alphaFinal != 1.0f;
 
           //Clamp to deal with HDR values. Not scale.
           float r = Math.Min(1.0f, Math.Max(0.0f, baseColorOut.R));
