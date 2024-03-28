@@ -10,8 +10,53 @@ namespace Export_glTF
 {
   internal class MeshMaterialPair
   {
-    public Rhino.Geometry.Mesh Mesh = null;
-    public Rhino.Render.RenderMaterial Material = null;
+    public MeshMaterialPair(Rhino.Geometry.Mesh mesh, Rhino.Render.RenderMaterial renderMaterial)
+    {
+      Mesh = mesh;
+
+      SetRenderMaterial(renderMaterial);
+    }
+
+    public void SetRenderMaterial(Rhino.Render.RenderMaterial renderMaterial)
+    {
+      RenderMaterial = renderMaterial;
+
+      if (RenderMaterial != null)
+      {
+        Material = RenderMaterial.ToMaterial(Rhino.Render.RenderTexture.TextureGeneration.Allow);
+
+        if (!Material.IsPhysicallyBased)
+        {
+          Material.ToPhysicallyBased();
+        }
+
+        PBR = Material.PhysicallyBased;
+      }
+    }
+
+    public Rhino.Geometry.Mesh Mesh
+    {
+      get;
+      private set;
+    } = null;
+
+    public Rhino.Render.RenderMaterial RenderMaterial
+    {
+      get;
+      private set;
+    } = null;
+
+    public Rhino.DocObjects.Material Material
+    {
+      get;
+      private set;
+    } = null;
+
+    public Rhino.DocObjects.PhysicallyBasedMaterial PBR
+    {
+      get;
+      private set;
+    } = null;
   }
 
   internal class ObjectExportData
@@ -276,24 +321,24 @@ namespace Export_glTF
       return true;
     }
 
-    public int? GetMaterial(Rhino.Render.RenderMaterial material, Dictionary<int, int> mappingToGltfTexCoord, Rhino.DocObjects.RhinoObject rhinoObject)
+    public int? GetMaterial(MeshMaterialPair pair, Dictionary<int, int> mappingToGltfTexCoord, Rhino.DocObjects.RhinoObject rhinoObject)
     {
       if (!options.ExportMaterials)
       {
         return null;
       }
 
-      if (material == null && options.UseDisplayColorForUnsetMaterials)
+      if (pair.RenderMaterial == null && options.UseDisplayColorForUnsetMaterials)
       {
         System.Drawing.Color objectColor = GetObjectColor(rhinoObject);
         return GetSolidColorMaterial(objectColor);
       }
-      else if (material == null)
+      else if (pair.RenderMaterial == null)
       {
-        material = DefaultMaterial;
+        pair.SetRenderMaterial(DefaultMaterial);
       }
 
-      Guid materialId = material.Id;
+      Guid materialId = pair.RenderMaterial.Id;
 
       int materialIndex = -1;
 
@@ -311,7 +356,7 @@ namespace Export_glTF
 
         if(materialIndex == -1)
         {
-          materialIndex = CreateMaterial(material, mappingToGltfTexCoord);
+          materialIndex = CreateMaterial(pair, mappingToGltfTexCoord);
 
           materials.Add(new ExportedMaterialAndMapping()
           {
@@ -324,7 +369,7 @@ namespace Export_glTF
       {
         materials = new List<ExportedMaterialAndMapping>();
 
-        materialIndex = CreateMaterial(material, mappingToGltfTexCoord);
+        materialIndex = CreateMaterial(pair, mappingToGltfTexCoord);
 
         materials.Add(new ExportedMaterialAndMapping()
         {
@@ -338,9 +383,9 @@ namespace Export_glTF
       return materialIndex;
     }
 
-    private int CreateMaterial(Rhino.Render.RenderMaterial material, Dictionary<int, int> mappingToGltfTexCoord)
+    private int CreateMaterial(MeshMaterialPair pair, Dictionary<int, int> mappingToGltfTexCoord)
     {
-      RhinoMaterialGltfConverter materialConverter = new RhinoMaterialGltfConverter(options, binary, dummy, binaryBuffer, material, mappingToGltfTexCoord, workflow);
+      RhinoMaterialGltfConverter materialConverter = new RhinoMaterialGltfConverter(options, binary, dummy, binaryBuffer, pair, mappingToGltfTexCoord, workflow);
       return materialConverter.AddMaterial();
     }
 
@@ -443,11 +488,7 @@ namespace Export_glTF
 
           mesh.Transform(item.Transform);
 
-          item.Meshes.Add(new MeshMaterialPair()
-          {
-            Mesh = mesh,
-            Material = GetObjectMaterial(item.Object)
-          });
+          item.Meshes.Add(new MeshMaterialPair(mesh, GetObjectMaterial(item.Object)));
         }
         else
         {
@@ -470,11 +511,7 @@ namespace Export_glTF
                 copy.Transform(item.Transform);
               }
 
-              item.Meshes.Add(new MeshMaterialPair()
-              {
-                Mesh = copy,
-                Material = mesh.Material,
-              });
+              item.Meshes.Add(new MeshMaterialPair(copy, mesh.Material));
             }
           }
           else
@@ -499,11 +536,7 @@ namespace Export_glTF
                 mesh.Transform(item.Transform);
               }
 
-              item.Meshes.Add(new MeshMaterialPair()
-              {
-                Mesh = mesh,
-                Material = material,
-              });
+              item.Meshes.Add(new MeshMaterialPair(mesh, material));
             }
           }
         }
