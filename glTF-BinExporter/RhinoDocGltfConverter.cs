@@ -104,6 +104,9 @@ namespace Export_glTF
 
     private Dictionary<int, glTFLoader.Schema.Node> layers = new Dictionary<int, glTFLoader.Schema.Node>();
 
+    //First int is Color.AsARGB, second is the material index
+    private Dictionary<int, int> solidColorMaterialMap = new Dictionary<int, int>();
+
     private Rhino.Render.RenderMaterial defaultMaterial = null;
     private Rhino.Render.RenderMaterial DefaultMaterial
     {
@@ -391,16 +394,24 @@ namespace Export_glTF
 
     public int GetSolidColorMaterial(System.Drawing.Color color)
     {
-      glTFLoader.Schema.Material material = new glTFLoader.Schema.Material()
+      int argb = color.ToArgb();
+      if (!solidColorMaterialMap.TryGetValue(argb, out int index))
       {
-        PbrMetallicRoughness = new glTFLoader.Schema.MaterialPbrMetallicRoughness()
+        glTFLoader.Schema.Material material = new glTFLoader.Schema.Material()
         {
-          BaseColorFactor = new Rhino.Display.Color4f(color).ToFloatArray(),
-        },
-        DoubleSided = !options.CullBackfaces,
-      };
+          PbrMetallicRoughness = new glTFLoader.Schema.MaterialPbrMetallicRoughness()
+          {
+            BaseColorFactor = new Rhino.Display.Color4f(color).ToFloatArray(),
+          },
+          DoubleSided = !options.CullBackfaces,
+        };
 
-      return dummy.Materials.AddAndReturnIndex(material);
+        index = dummy.Materials.AddAndReturnIndex(material);
+
+        solidColorMaterialMap.Add(argb, index);
+      }
+
+      return index;
     }
 
     public System.Drawing.Color GetObjectColor(Rhino.DocObjects.RhinoObject rhinoObject)
@@ -511,7 +522,14 @@ namespace Export_glTF
                 copy.Transform(item.Transform);
               }
 
-              item.Meshes.Add(new MeshMaterialPair(copy, mesh.Material));
+              if(item.Object.RenderMaterial == null && options.UseDisplayColorForUnsetMaterials)
+              {
+                item.Meshes.Add(new MeshMaterialPair(copy, null));
+              }
+              else
+              {
+                item.Meshes.Add(new MeshMaterialPair(copy, mesh.Material));
+              }
             }
           }
           else
