@@ -66,8 +66,8 @@ namespace Export_glTF
 
       HandleBaseColor(pair.Material, material);
 
-      bool hasMetalTexture = metallicTexture == null ? false : metallicTexture.Enabled;
-      bool hasRoughnessTexture = roughnessTexture == null ? false : roughnessTexture.Enabled;
+      bool hasMetalTexture = CanExportTexture(metallicTexture);
+      bool hasRoughnessTexture = CanExportTexture(roughnessTexture);
 
       if (hasMetalTexture || hasRoughnessTexture)
       {
@@ -85,19 +85,19 @@ namespace Export_glTF
         material.PbrMetallicRoughness.RoughnessFactor = (float)pair.PBR.Roughness;
       }
 
-      if (normalTexture != null && normalTexture.Enabled)
+      if (CanExportTexture(normalTexture))
       {
         material.NormalTexture = GetNormalTextureInfo(normalTexture);
       }
 
-      if (occlusionTexture != null && occlusionTexture.Enabled)
+      if (CanExportTexture(occlusionTexture))
       {
         material.OcclusionTexture = GetOcclusionTextureInfo(occlusionTexture);
       }
 
       //Emission
 
-      if (emissiveTexture != null && emissiveTexture.Enabled)
+      if (CanExportTexture(emissiveTexture))
       {
         material.EmissiveTexture = GetTextureInfo(emissiveTexture);
 
@@ -154,7 +154,7 @@ namespace Export_glTF
 
       glTFExtensions.KHR_materials_transmission transmission = new glTFExtensions.KHR_materials_transmission();
 
-      if (opacityTexture != null && opacityTexture.Enabled)
+      if (CanExportTexture(opacityTexture))
       {
         //Transmission texture is stored in an images R channel
         //https://github.com/KhronosGroup/glTF/blob/master/extensions/2.0/Khronos/KHR_materials_transmission/README.md#properties
@@ -172,7 +172,7 @@ namespace Export_glTF
 
       glTFExtensions.KHR_materials_clearcoat clearcoat = new glTFExtensions.KHR_materials_clearcoat();
 
-      if (clearcoatTexture != null && clearcoatTexture.Enabled)
+      if (CanExportTexture(clearcoatTexture))
       {
         clearcoat.ClearcoatTexture = GetTextureInfo(clearcoatTexture);
         clearcoat.ClearcoatFactor = GetTextureWeight(clearcoatTexture);
@@ -182,7 +182,7 @@ namespace Export_glTF
         clearcoat.ClearcoatFactor = (float)pair.PBR.Clearcoat;
       }
 
-      if (clearcoatRoughessTexture != null && clearcoatRoughessTexture.Enabled)
+      if (CanExportTexture(clearcoatRoughessTexture))
       {
         clearcoat.ClearcoatRoughnessTexture = GetTextureInfo(clearcoatRoughessTexture);
         clearcoat.ClearcoatRoughnessFactor = GetTextureWeight(clearcoatRoughessTexture);
@@ -192,7 +192,7 @@ namespace Export_glTF
         clearcoat.ClearcoatRoughnessFactor = (float)pair.PBR.ClearcoatRoughness;
       }
 
-      if (clearcoatNormalTexture != null && clearcoatNormalTexture.Enabled)
+      if (CanExportTexture(clearcoatNormalTexture))
       {
         clearcoat.ClearcoatNormalTexture = GetNormalTextureInfo(clearcoatNormalTexture);
       }
@@ -212,7 +212,7 @@ namespace Export_glTF
 
       glTFExtensions.KHR_materials_specular specular = new glTFExtensions.KHR_materials_specular();
 
-      if (specularTexture != null && specularTexture.Enabled)
+      if (CanExportTexture(specularTexture))
       {
         //Specular is stored in the textures alpha channel
         specular.SpecularTexture = GetSingleChannelTexture(specularTexture, RgbaChannel.Alpha, false);
@@ -307,10 +307,10 @@ namespace Export_glTF
       Rhino.Render.RenderTexture baseColorTexture = pair.RenderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrBaseColor);
       Rhino.Render.RenderTexture alphaTexture = pair.RenderMaterial.GetTextureFromUsage(Rhino.Render.RenderMaterial.StandardChildSlots.PbrAlpha);
 
-      bool baseColorLinear = baseColorTexture == null ? false : baseColorDoc.TreatAsLinear;
+      bool baseColorLinear = baseColorDoc == null ? false : baseColorDoc.TreatAsLinear;
 
-      bool hasBaseColorTexture = baseColorDoc == null ? false : baseColorDoc.Enabled;
-      bool hasAlphaTexture = alphaTextureDoc == null ? false : alphaTextureDoc.Enabled;
+      bool hasBaseColorTexture = CanExportTexture(baseColorDoc);
+      bool hasAlphaTexture = CanExportTexture(alphaTextureDoc);
 
       bool baseColorDiffuseAlphaForTransparency = pair.PBR.UseBaseColorTextureAlphaForObjectAlphaTransparencyTexture;
 
@@ -965,6 +965,26 @@ namespace Export_glTF
       }
 
       return 0; //default
+    }
+
+    private bool CanExportTexture(Rhino.DocObjects.Texture texture)
+    {
+      if(texture == null)
+      {
+        return false;
+      }
+
+      if(texture.Enabled == false)
+      {
+        return false;
+      }
+
+      if(File.Exists(texture.FileReference.FullPath) == false)
+      {
+        return false;
+      }
+
+      return true;
     }
 
   }

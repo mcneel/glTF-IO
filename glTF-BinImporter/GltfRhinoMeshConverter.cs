@@ -431,11 +431,11 @@ namespace Import_glTF
           return false;
         }
 
-        for (int i = 1; i < indices.Length - 1; i++)
+        for (int i = 0; i < indices.Length - 2; i++)
         {
-          int indexOne = (int)indices[0];
-          int indexTwo = (int)indices[i];
-          int indexThree = (int)indices[i + 1];
+          int indexOne = (int)indices[i + 1];
+          int indexTwo = (int)indices[i + 2];
+          int indexThree = (int)indices[0];
 
           if (ValidFace(indexOne, indexTwo, indexThree, rhinoMesh.Vertices.Count))
           {
@@ -447,9 +447,9 @@ namespace Import_glTF
       }
       else
       {
-        for (int i = 1; i < rhinoMesh.Vertices.Count - 1; i++)
+        for (int i = 0; i < rhinoMesh.Vertices.Count - 2; i++)
         {
-          Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(0, i, i + 1);
+          Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(i + 1, i + 2, 0);
 
           rhinoMesh.Faces.AddFace(face);
         }
@@ -525,7 +525,8 @@ namespace Import_glTF
         int count = rhinoMesh.Vertices.Count / 3;
         for (int i = 0; i < count; i++)
         {
-          Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(i + 1, i + 2, 0);
+          int index = i * 3;
+          Rhino.Geometry.MeshFace face = new Rhino.Geometry.MeshFace(index + 0, index + 1, index + 2);
 
           rhinoMesh.Faces.AddFace(face);
         }
