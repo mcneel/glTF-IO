@@ -258,6 +258,10 @@ namespace Import_glTF
 
           if(rhinoMesh != null)
           {
+            //RH-83386
+            //Mesh data always has bad faces so clean them up here
+            rhinoMesh.Faces.CullDegenerateFaces();
+
             meshHolder.AddPrimitive(rhinoMesh, primitive.Material, textureMappings);
           }
         }
