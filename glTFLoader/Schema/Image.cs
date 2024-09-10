@@ -164,6 +164,9 @@ namespace glTFLoader.Schema {
             
             [EnumMember(Value="image/png")]
             image_png,
+
+            [EnumMember(Value = "image/ktx2")]
+            image_ktx2,
         }
     }
 }
