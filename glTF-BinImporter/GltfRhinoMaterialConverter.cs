@@ -38,25 +38,28 @@ namespace Import_glTF
           int index = material.PbrMetallicRoughness.BaseColorTexture.Index;
 
           RenderTexture texture = converter.GetRenderTexture(index);
-          texture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.BaseColorTexture.TexCoord), RenderContent.ChangeContexts.Program);
-
-          TryHandleTextureTransform(texture, material.PbrMetallicRoughness.BaseColorTexture.Extensions);
-
-          RenderTexture child = null;
-
-          if(baseColor.R == 1.0 && baseColor.G == 1.0 && baseColor.B == 1.0 && baseColor.A == 1.0)
+          if (texture != null)
           {
-            child = texture;
-          }
-          else
-          {
-            child = converter.CreateMultiplyTexture(texture, baseColor);
-          }
+            texture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.BaseColorTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-          pbr.SetChild(child, Rhino.Render.ParameterNames.PhysicallyBased.BaseColor);
-          pbr.SetChildSlotOn(Rhino.Render.ParameterNames.PhysicallyBased.BaseColor, true, RenderContent.ChangeContexts.Program);
+            TryHandleTextureTransform(texture, material.PbrMetallicRoughness.BaseColorTexture.Extensions);
 
-          pbr.SetParameter("alpha-transparency", true);
+            RenderTexture child = null;
+
+            if (baseColor.R == 1.0 && baseColor.G == 1.0 && baseColor.B == 1.0 && baseColor.A == 1.0)
+            {
+              child = texture;
+            }
+            else
+            {
+              child = converter.CreateMultiplyTexture(texture, baseColor);
+            }
+
+            pbr.SetChild(child, Rhino.Render.ParameterNames.PhysicallyBased.BaseColor);
+            pbr.SetChildSlotOn(Rhino.Render.ParameterNames.PhysicallyBased.BaseColor, true, RenderContent.ChangeContexts.Program);
+
+            pbr.SetParameter("alpha-transparency", true);
+          }
         }
         else
         {
@@ -74,21 +77,28 @@ namespace Import_glTF
           int index = material.PbrMetallicRoughness.MetallicRoughnessTexture.Index;
 
           RenderTexture metallicTexture = converter.GetRenderTexture(index, ArgbChannel.Blue);
+          if(metallicTexture != null)
+          {
+            metallicTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
+
+            TryHandleTextureTransform(metallicTexture, material.PbrMetallicRoughness.MetallicRoughnessTexture.Extensions);
+
+            pbr.SetChild(metallicTexture, PhysicallyBased.Metallic);
+            pbr.SetChildSlotOn(PhysicallyBased.Metallic, true, RenderContent.ChangeContexts.Program);
+            pbr.SetChildSlotAmount(PhysicallyBased.Metallic, metalness * 100.0, RenderContent.ChangeContexts.Program);
+          }
+
           RenderTexture roughnessTexture = converter.GetRenderTexture(index, ArgbChannel.Green);
+          if(roughnessTexture != null)
+          {
+            roughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-          metallicTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
-          roughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.PbrMetallicRoughness.MetallicRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
+            TryHandleTextureTransform(roughnessTexture, material.PbrMetallicRoughness.MetallicRoughnessTexture.Extensions);
 
-          TryHandleTextureTransform(metallicTexture, material.PbrMetallicRoughness.MetallicRoughnessTexture.Extensions);
-          TryHandleTextureTransform(roughnessTexture, material.PbrMetallicRoughness.MetallicRoughnessTexture.Extensions);
-
-          pbr.SetChild(metallicTexture, PhysicallyBased.Metallic);
-          pbr.SetChildSlotOn(PhysicallyBased.Metallic, true, RenderContent.ChangeContexts.Program);
-          pbr.SetChildSlotAmount(PhysicallyBased.Metallic, metalness * 100.0, RenderContent.ChangeContexts.Program);
-
-          pbr.SetChild(roughnessTexture, PhysicallyBased.Roughness);
-          pbr.SetChildSlotOn(PhysicallyBased.Roughness, true, RenderContent.ChangeContexts.Program);
-          pbr.SetChildSlotAmount(PhysicallyBased.Roughness, roughness * 100.0, RenderContent.ChangeContexts.Program);
+            pbr.SetChild(roughnessTexture, PhysicallyBased.Roughness);
+            pbr.SetChildSlotOn(PhysicallyBased.Roughness, true, RenderContent.ChangeContexts.Program);
+            pbr.SetChildSlotAmount(PhysicallyBased.Roughness, roughness * 100.0, RenderContent.ChangeContexts.Program);
+          }
         }
         else
         {
@@ -107,12 +117,15 @@ namespace Import_glTF
       if (material.EmissiveTexture != null)
       {
         RenderTexture emissiveTexture = converter.GetRenderTexture(material.EmissiveTexture.Index);
-        emissiveTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.EmissiveTexture.TexCoord), RenderContent.ChangeContexts.Program);
+        if(emissiveTexture != null)
+        {
+          emissiveTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.EmissiveTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-        TryHandleTextureTransform(emissiveTexture, material.EmissiveTexture.Extensions);
+          TryHandleTextureTransform(emissiveTexture, material.EmissiveTexture.Extensions);
 
-        pbr.SetChild(emissiveTexture, PhysicallyBased.Emission);
-        pbr.SetChildSlotOn(PhysicallyBased.Emission, true, RenderContent.ChangeContexts.Program);
+          pbr.SetChild(emissiveTexture, PhysicallyBased.Emission);
+          pbr.SetChildSlotOn(PhysicallyBased.Emission, true, RenderContent.ChangeContexts.Program);
+        }
       }
 
       if (material.OcclusionTexture != null)
@@ -120,25 +133,30 @@ namespace Import_glTF
         //Occlusion texture is only the R channel
         //https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#_material_occlusiontexture
         RenderTexture occlusionTexture = converter.GetRenderTexture(material.OcclusionTexture.Index, ArgbChannel.Red);
-        occlusionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.OcclusionTexture.TexCoord), RenderContent.ChangeContexts.Program);
+        if(occlusionTexture != null)
+        {
+          occlusionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.OcclusionTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-        TryHandleTextureTransform(occlusionTexture, material.OcclusionTexture.Extensions);
+          TryHandleTextureTransform(occlusionTexture, material.OcclusionTexture.Extensions);
 
-        pbr.SetChild(occlusionTexture, PhysicallyBased.AmbientOcclusion);
-        pbr.SetChildSlotOn(PhysicallyBased.AmbientOcclusion, true, RenderContent.ChangeContexts.Program);
-        pbr.SetChildSlotAmount(PhysicallyBased.AmbientOcclusion, material.OcclusionTexture.Strength * 100.0, RenderContent.ChangeContexts.Program);
-
+          pbr.SetChild(occlusionTexture, PhysicallyBased.AmbientOcclusion);
+          pbr.SetChildSlotOn(PhysicallyBased.AmbientOcclusion, true, RenderContent.ChangeContexts.Program);
+          pbr.SetChildSlotAmount(PhysicallyBased.AmbientOcclusion, material.OcclusionTexture.Strength * 100.0, RenderContent.ChangeContexts.Program);
+        }
       }
 
       if (material.NormalTexture != null)
       {
         RenderTexture normalTexture = converter.GetRenderTexture(material.NormalTexture.Index);
-        normalTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.NormalTexture.TexCoord), RenderContent.ChangeContexts.Program);
+        if(normalTexture != null)
+        {
+          normalTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(material.NormalTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-        TryHandleTextureTransform(normalTexture, material.NormalTexture.Extensions);
+          TryHandleTextureTransform(normalTexture, material.NormalTexture.Extensions);
 
-        pbr.SetChild(normalTexture, PhysicallyBased.Bump);
-        pbr.SetChildSlotOn(PhysicallyBased.Bump, true, RenderContent.ChangeContexts.Program);
+          pbr.SetChild(normalTexture, PhysicallyBased.Bump);
+          pbr.SetChildSlotOn(PhysicallyBased.Bump, true, RenderContent.ChangeContexts.Program);
+        }
       }
 
       string clearcoatText = "";
@@ -203,13 +221,16 @@ namespace Import_glTF
         if (clearcoat.ClearcoatTexture != null)
         {
           RenderTexture clearcoatTexture = converter.GetRenderTexture(clearcoat.ClearcoatTexture.Index);
-          clearcoatTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatTexture.TexCoord), RenderContent.ChangeContexts.Program);
+          if(clearcoatTexture != null)
+          {
+            clearcoatTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-          TryHandleTextureTransform(clearcoatTexture, clearcoat.ClearcoatTexture.Extensions);
+            TryHandleTextureTransform(clearcoatTexture, clearcoat.ClearcoatTexture.Extensions);
 
-          pbr.SetChild(clearcoatTexture, PhysicallyBased.Clearcoat);
-          pbr.SetChildSlotOn(PhysicallyBased.Clearcoat, true, RenderContent.ChangeContexts.Program);
-          pbr.SetChildSlotAmount(PhysicallyBased.Clearcoat, clearcoat.ClearcoatFactor * 100.0, RenderContent.ChangeContexts.Program);
+            pbr.SetChild(clearcoatTexture, PhysicallyBased.Clearcoat);
+            pbr.SetChildSlotOn(PhysicallyBased.Clearcoat, true, RenderContent.ChangeContexts.Program);
+            pbr.SetChildSlotAmount(PhysicallyBased.Clearcoat, clearcoat.ClearcoatFactor * 100.0, RenderContent.ChangeContexts.Program);
+          }
         }
         else
         {
@@ -219,13 +240,16 @@ namespace Import_glTF
         if (clearcoat.ClearcoatRoughnessTexture != null)
         {
           RenderTexture clearcoatRoughnessTexture = converter.GetRenderTexture(clearcoat.ClearcoatRoughnessTexture.Index);
-          clearcoatRoughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
+          if(clearcoatRoughnessTexture != null)
+          {
+            clearcoatRoughnessTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatRoughnessTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-          TryHandleTextureTransform(clearcoatRoughnessTexture, clearcoat.ClearcoatRoughnessTexture.Extensions);
+            TryHandleTextureTransform(clearcoatRoughnessTexture, clearcoat.ClearcoatRoughnessTexture.Extensions);
 
-          pbr.SetChild(clearcoatRoughnessTexture, PhysicallyBased.ClearcoatRoughness);
-          pbr.SetChildSlotOn(PhysicallyBased.ClearcoatRoughness, true, RenderContent.ChangeContexts.Program);
-          pbr.SetChildSlotAmount(PhysicallyBased.ClearcoatRoughness, clearcoat.ClearcoatRoughnessFactor * 100.0, RenderContent.ChangeContexts.Program);
+            pbr.SetChild(clearcoatRoughnessTexture, PhysicallyBased.ClearcoatRoughness);
+            pbr.SetChildSlotOn(PhysicallyBased.ClearcoatRoughness, true, RenderContent.ChangeContexts.Program);
+            pbr.SetChildSlotAmount(PhysicallyBased.ClearcoatRoughness, clearcoat.ClearcoatRoughnessFactor * 100.0, RenderContent.ChangeContexts.Program);
+          }
         }
         else
         {
@@ -235,12 +259,15 @@ namespace Import_glTF
         if (clearcoat.ClearcoatNormalTexture != null)
         {
           RenderTexture clearcoatNormalTexture = converter.GetRenderTexture(clearcoat.ClearcoatNormalTexture.Index);
-          clearcoatNormalTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatNormalTexture.TexCoord), RenderContent.ChangeContexts.Program);
+          if(clearcoatNormalTexture != null)
+          {
+            clearcoatNormalTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(clearcoat.ClearcoatNormalTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-          TryHandleTextureTransform(clearcoatNormalTexture, clearcoat.ClearcoatNormalTexture.Extensions);
+            TryHandleTextureTransform(clearcoatNormalTexture, clearcoat.ClearcoatNormalTexture.Extensions);
 
-          pbr.SetChild(clearcoatNormalTexture, PhysicallyBased.ClearcoatBump);
-          pbr.SetChildSlotOn(PhysicallyBased.ClearcoatBump, true, RenderContent.ChangeContexts.Program);
+            pbr.SetChild(clearcoatNormalTexture, PhysicallyBased.ClearcoatBump);
+            pbr.SetChildSlotOn(PhysicallyBased.ClearcoatBump, true, RenderContent.ChangeContexts.Program);
+          }
         }
       }
     }
@@ -259,13 +286,16 @@ namespace Import_glTF
         {
           //Transmission is stored in the textures red channel
           RenderTexture transmissionTexture = converter.GetRenderTexture(transmission.TransmissionTexture.Index, ArgbChannel.Red);
-          transmissionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(transmission.TransmissionTexture.TexCoord), RenderContent.ChangeContexts.Program);
+          if(transmissionTexture != null)
+          {
+            transmissionTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(transmission.TransmissionTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-          TryHandleTextureTransform(transmissionTexture, transmission.TransmissionTexture.Extensions);
+            TryHandleTextureTransform(transmissionTexture, transmission.TransmissionTexture.Extensions);
 
-          pbr.SetChild(transmissionTexture, PhysicallyBased.Opacity);
-          pbr.SetChildSlotOn(PhysicallyBased.Opacity, true, RenderContent.ChangeContexts.Program);
-          pbr.SetChildSlotAmount(PhysicallyBased.Opacity, transmission.TransmissionFactor * 100.0, RenderContent.ChangeContexts.Program);
+            pbr.SetChild(transmissionTexture, PhysicallyBased.Opacity);
+            pbr.SetChildSlotOn(PhysicallyBased.Opacity, true, RenderContent.ChangeContexts.Program);
+            pbr.SetChildSlotAmount(PhysicallyBased.Opacity, transmission.TransmissionFactor * 100.0, RenderContent.ChangeContexts.Program);
+          }
         }
         else
         {
@@ -297,13 +327,16 @@ namespace Import_glTF
         if (specular.SpecularTexture != null)
         {
           RenderTexture specularTexture = converter.GetRenderTexture(specular.SpecularTexture.Index, ArgbChannel.Alpha);
-          specularTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(specular.SpecularTexture.TexCoord), RenderContent.ChangeContexts.Program);
+          if(specularTexture != null)
+          {
+            specularTexture.SetMappingChannel(GltfUtils.GltfTexCoordIndexToRhinoMappingChannel(specular.SpecularTexture.TexCoord), RenderContent.ChangeContexts.Program);
 
-          TryHandleTextureTransform(specularTexture, specular.SpecularTexture.Extensions);
+            TryHandleTextureTransform(specularTexture, specular.SpecularTexture.Extensions);
 
-          pbr.SetChild(specularTexture, PhysicallyBased.Specular);
-          pbr.SetChildSlotOn(PhysicallyBased.Specular, true, RenderContent.ChangeContexts.Program);
-          pbr.SetChildSlotAmount(PhysicallyBased.Specular, specular.SpecularFactor * 100.0, RenderContent.ChangeContexts.Program);
+            pbr.SetChild(specularTexture, PhysicallyBased.Specular);
+            pbr.SetChildSlotOn(PhysicallyBased.Specular, true, RenderContent.ChangeContexts.Program);
+            pbr.SetChildSlotAmount(PhysicallyBased.Specular, specular.SpecularFactor * 100.0, RenderContent.ChangeContexts.Program);
+          }
         }
         else
         {
