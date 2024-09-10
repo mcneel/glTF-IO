@@ -1,3 +1,4 @@
+using Rhino;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -91,6 +92,14 @@ namespace Import_glTF
 
     public bool Convert()
     {
+      if(
+        (glTF.ExtensionsUsed != null && glTF.ExtensionsUsed.Contains(glTFExtensions.KHR_texture_basisu.Tag)) ||
+        (glTF.ExtensionsRequired != null && glTF.ExtensionsRequired.Contains(glTFExtensions.KHR_texture_basisu.Tag))
+        )
+      {
+        RhinoApp.WriteLine(Rhino.UI.LOC.STR("Unsupported extension \"KHR_texture_basisu\" used. Some textures may be able to be imported."));
+      }
+
       for (int i = 0; i < glTF.Buffers.Length; i++)
       {
         buffers.Add(glTFLoader.Interface.LoadBinaryBuffer(glTF, i, path));
@@ -100,13 +109,22 @@ namespace Import_glTF
       {
         for (int i = 0; i < glTF.Images.Length; i++)
         {
-          Stream stream = glTFLoader.Interface.OpenImageFile(glTF, i, path);
+          glTFLoader.Schema.Image img = glTF.Images[i];
 
-          System.Drawing.Bitmap bmp = new System.Drawing.Bitmap(stream);
+          if(img.MimeType == glTFLoader.Schema.Image.MimeTypeEnum.image_ktx2)
+          {
+            images.Add(null);
+          }
+          else
+          {
+            Stream stream = glTFLoader.Interface.OpenImageFile(glTF, i, path);
 
-          string name = glTF.Images[i].Name;
+            System.Drawing.Bitmap bmp = new System.Drawing.Bitmap(stream);
 
-          images.Add(new ImageHolder(this, bmp, name));
+            string name = glTF.Images[i].Name;
+
+            images.Add(new ImageHolder(this, bmp, name));
+          }
         }
       }
 
@@ -356,6 +374,13 @@ namespace Import_glTF
 
       ImageHolder holder = images[texture.Source.Value];
 
+      //We can have null textures from basisu textures we can't decode
+      //The image type is glTFLoader.Schema.Image.MimeTypeEnum.image_ktx2
+      if (holder == null)
+      {
+        return null;
+      }
+
       string textureName = GetUniqueName(GetUsefulTextureName(texture));
 
       string textureFilename = holder.RgbaImagePath();
@@ -373,6 +398,13 @@ namespace Import_glTF
       }
 
       ImageHolder holder = images[texture.Source.Value];
+
+      //We can have null textures from basisu textures we can't decode
+      //The image type is glTFLoader.Schema.Image.MimeTypeEnum.image_ktx2
+      if (holder == null)
+      {
+        return null;
+      }
 
       string textureName = GetUniqueName(GetUsefulTextureName(texture));
 
