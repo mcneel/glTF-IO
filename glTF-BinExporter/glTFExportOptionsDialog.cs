@@ -7,7 +7,7 @@ using Eto.Forms;
 
 namespace Export_glTF
 {
-  class ExportOptionsDialog : Dialog<DialogResult>
+  class ExportOptionsDialog : Rhino.UI.Forms.CommandDialog
   {
     private const int DefaultPadding = 5;
     private static readonly Eto.Drawing.Size DefaultSpacing = new Eto.Drawing.Size(2, 2);
@@ -38,13 +38,15 @@ namespace Export_glTF
     private NumericStepper dracoQuantizationBitsInputNormal = new NumericStepper() { DecimalPlaces = 0, MinValue = 8, MaxValue = 32 };
     private NumericStepper dracoQuantizationBitsInputTexture = new NumericStepper() { DecimalPlaces = 0, MinValue = 8, MaxValue = 32 };
 
-    private Button cancelButton = new Button();
-    private Button okButton = new Button();
-
     private CheckBox useSettingsDontShowDialogCheck = new CheckBox();
 
     public ExportOptionsDialog()
     {
+      HelpButtonClick += (e, s) =>
+      {
+        Rhino.UI.RhinoHelp.Show("fileio/gltf_import_export.htm");
+      };
+
       Resizable = false;
 
       Title = Rhino.UI.Localization.LocalizeString("glTF Export Options", 3);
@@ -99,10 +101,6 @@ namespace Export_glTF
 
       dracoQuantizationBitsLabel.Text = Rhino.UI.Localization.LocalizeString("Quantization", 17);
 
-      cancelButton.Text = Rhino.UI.Localization.LocalizeString("Cancel", 18);
-
-      okButton.Text = Rhino.UI.Localization.LocalizeString("Ok", 19);
-
       useSettingsDontShowDialogCheck.Text = Rhino.UI.Localization.LocalizeString("Always use these settings. Do not show this dialog again.", 20);
 
       OptionsToDialog();
@@ -111,9 +109,6 @@ namespace Export_glTF
       exportMaterials.CheckedChanged += ExportMaterials_CheckedChanged;
 
       useSubdControlNet.CheckedChanged += UseSubdControlNet_CheckedChanged;
-
-      cancelButton.Click += CancelButton_Click;
-      okButton.Click += OkButton_Click;
 
       var dracoGroupBox = new GroupBox() { Text = Rhino.UI.Localization.LocalizeString("Draco Quantization Bits", 21) };
       dracoGroupBox.Content = new TableLayout()
@@ -221,18 +216,6 @@ namespace Export_glTF
           {
             ScaleHeight = false,
           },
-          new TableRow(new TableLayout()
-          {
-            Padding = DefaultPadding,
-            Spacing = DefaultSpacing,
-            Rows =
-            {
-              new TableRow(new TableCell(cancelButton, true), new TableCell(okButton, true)),
-            }
-          })
-          {
-            ScaleHeight = false,
-          },
         }
       };
     }
@@ -269,7 +252,7 @@ namespace Export_glTF
       dracoQuantizationBitsInputTexture.Value = Export_glTFPlugin.DracoQuantizationBitsTexture;
     }
 
-    private void DialogToOptions()
+    public void DialogToOptions()
     {
       Export_glTFPlugin.UseSavedSettingsDontShowDialog = GetCheckboxValue(useSettingsDontShowDialogCheck);
 
@@ -338,18 +321,6 @@ namespace Export_glTF
     {
       bool controlNet = GetCheckboxValue(useSubdControlNet);
       EnabledDisableSubDLevel(!controlNet);
-    }
-
-    private void CancelButton_Click(object sender, EventArgs e)
-    {
-      this.Close(DialogResult.Cancel);
-    }
-
-    private void OkButton_Click(object sender, EventArgs e)
-    {
-      DialogToOptions();
-
-      this.Close(DialogResult.Ok);
     }
   }
 }
