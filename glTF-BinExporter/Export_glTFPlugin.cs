@@ -50,12 +50,14 @@ namespace Export_glTF
         ExportOptionsDialog optionsDlg = new ExportOptionsDialog();
 
         optionsDlg.RestorePosition();
-        Eto.Forms.DialogResult result = optionsDlg.ShowModal(Rhino.UI.RhinoEtoApp.MainWindow);
+        var result = optionsDlg.ShowModal();
 
-        if (result != Eto.Forms.DialogResult.Ok)
+        if (result != Result.Success)
         {
           return WriteFileResult.Cancel;
         }
+
+        optionsDlg.DialogToOptions();
       }
 
       FileGltfWriteOptions exportOptions = null;
@@ -97,7 +99,12 @@ namespace Export_glTF
       ExportOptionsDialog exportOptionsDialog = new ExportOptionsDialog();
 
       exportOptionsDialog.RestorePosition();
-      exportOptionsDialog.ShowModal(Rhino.UI.RhinoEtoApp.MainWindow);
+      var rc = exportOptionsDialog.ShowModal(Rhino.UI.RhinoEtoApp.MainWindow);
+
+      if(rc == Result.Success)
+      {
+        exportOptionsDialog.DialogToOptions();
+      }
     }
 
     public static bool DoExport(string fileName, FileGltfWriteOptions options, bool binary, RhinoDoc doc, IEnumerable<Rhino.DocObjects.RhinoObject> rhinoObjects, Rhino.Render.LinearWorkflow workflow)
