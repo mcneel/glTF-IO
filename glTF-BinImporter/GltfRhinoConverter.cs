@@ -97,7 +97,7 @@ namespace Import_glTF
         (glTF.ExtensionsRequired != null && glTF.ExtensionsRequired.Contains(glTFExtensions.KHR_texture_basisu.Tag))
         )
       {
-        RhinoApp.WriteLine(Rhino.UI.LOC.STR("Unsupported extension \"KHR_texture_basisu\" used. Some textures may be able to be imported."));
+        RhinoApp.WriteLine(Rhino.UI.Localization.LocalizeString("Unsupported extension \"KHR_texture_basisu\" used. Some textures may be able to be imported.", 3));
       }
 
       for (int i = 0; i < glTF.Buffers.Length; i++)
