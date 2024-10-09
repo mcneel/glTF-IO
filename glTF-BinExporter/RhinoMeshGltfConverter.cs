@@ -11,6 +11,17 @@ using System.Threading.Tasks;
 
 namespace Export_glTF
 {
+  internal class TextureCoordinateInfo
+  {
+    /// <summary>
+    /// Channel id is the key, texture coordinates are the value
+    /// </summary>
+    public Dictionary<int, Rhino.Geometry.Point2f[]> TextureMappings;
+
+    public int WcsMappingChannelId = -1;
+    public int WcsBoxMappingChannelId = -1;
+  }
+
   class RhinoMeshGltfConverter
   {
     public RhinoMeshGltfConverter(RhinoDocGltfConverter converter, ObjectExportData exportData, FileGltfWriteOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer)
@@ -56,17 +67,20 @@ namespace Export_glTF
       rhinoMesh.Transform(transform);
     }
 
-    Dictionary<int, Point2f[]> GetTexCoords(Mesh mesh)
+    TextureCoordinateInfo GetTexCoords(Mesh mesh, Rhino.DocObjects.Material material)
     {
-      Dictionary<int, Point2f[]> rc = new Dictionary<int, Point2f[]>();
+      Dictionary<int, Point2f[]> dict = new Dictionary<int, Point2f[]>();
 
       int[] channels = exportData.Object.GetTextureChannels();
+
+      int max = -1;
 
       if (channels == null || channels.Length == 0)
       {
         if (mesh.TextureCoordinates.Count > 0) //Only if there are texture coordinates to export
         {
-          rc.Add(1, mesh.TextureCoordinates.ToArray());
+          dict.Add(1, mesh.TextureCoordinates.ToArray());
+          max = 1;
         }
       }
       else
@@ -87,9 +101,42 @@ namespace Export_glTF
             continue;
           }
 
-          rc.Add(channel, ToTextureCoordinateList(tc));
+          dict.Add(channel, ToTextureCoordinateList(tc));
+          max = Math.Max(channel, max);
         }
       }
+
+      TextureCoordinateInfo rc = new TextureCoordinateInfo();
+
+      foreach (var texture in material.GetTextures())
+      {
+        if(texture.WcsProjected && rc.WcsMappingChannelId == -1)
+        {
+          var wcsCached = mesh.GetCachedTextureCoordinates(exportData.Object, texture);
+
+          if(wcsCached != null)
+          {
+            max += 1;
+
+            dict.Add(max, ToTextureCoordinateList(wcsCached));
+            rc.WcsMappingChannelId = max;
+          }
+        }
+        else if(texture.WcsBoxProjected && rc.WcsBoxMappingChannelId == -1)
+        {
+          var wcsBoxCached = mesh.GetCachedTextureCoordinates(exportData.Object, texture);
+
+          if (wcsBoxCached != null)
+          {
+            max += 1;
+
+            dict.Add(max, ToTextureCoordinateList(wcsBoxCached));
+            rc.WcsBoxMappingChannelId = max;
+          }
+        }
+      }
+      
+      rc.TextureMappings = dict;
 
       return rc;
     }
@@ -109,20 +156,20 @@ namespace Export_glTF
 
         //TexCoords need retrieved and cached before preprocessing the mesh
         //So mapping transform accounts for the Z to Y Up transform and unit scale conversion
-        Dictionary<int, Point2f[]> textureCoordinates = GetTexCoords(rhinoMesh);
+        TextureCoordinateInfo textureCoordinates = GetTexCoords(rhinoMesh, meshMaterialPair.Material);
 
         PreprocessMesh(rhinoMesh);
 
         if (options.UseDracoCompression)
         {
-          if (!SetDracoGeometryInfo(rhinoMesh, textureCoordinates))
+          if (!SetDracoGeometryInfo(rhinoMesh, textureCoordinates.TextureMappings))
           {
             continue;
           }
         }
 
         bool exportNormals = ExportNormals(rhinoMesh);
-        bool exportTextureCoordinates = ExportTextureCoordinates(textureCoordinates);
+        bool exportTextureCoordinates = ExportTextureCoordinates(textureCoordinates.TextureMappings);
         bool exportVertexColors = ExportVertexColors(rhinoMesh);
 
         glTFLoader.Schema.MeshPrimitive primitive = new glTFLoader.Schema.MeshPrimitive()
@@ -150,7 +197,7 @@ namespace Export_glTF
         if (exportTextureCoordinates)
         {
           int texCoordIdx = 0;
-          foreach (var textureCoordinatePair in textureCoordinates)
+          foreach (var textureCoordinatePair in textureCoordinates.TextureMappings)
           {
             int textureCoordinatesAccessorIdx = GetTextureCoordinatesAccessor(textureCoordinatePair.Value);
 
@@ -200,7 +247,14 @@ namespace Export_glTF
           };
         }
 
-        primitive.Material = converter.GetMaterial(meshMaterialPair, mappingChannelToTexCoordIdx, exportData.Object);
+        TextureCoordinateMappingInfo info = new TextureCoordinateMappingInfo()
+        {
+          RhinoChannelToTexCoordsIdx = mappingChannelToTexCoordIdx,
+          WcsMappingChannelId = textureCoordinates.WcsMappingChannelId,
+          WcsBoxMappingChannelId = textureCoordinates.WcsBoxMappingChannelId,
+        };
+
+        primitive.Material = converter.GetMaterial(meshMaterialPair, info, exportData.Object);
 
         primitives.Add(primitive);
       }
