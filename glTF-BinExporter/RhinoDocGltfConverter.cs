@@ -66,10 +66,50 @@ namespace Export_glTF
     public Rhino.DocObjects.RhinoObject Object = null;
   }
 
+  class TextureCoordinateMappingInfo
+  {
+    public Dictionary<int, int> RhinoChannelToTexCoordsIdx = new Dictionary<int, int>();
+    public int WcsMappingChannelId = -1;
+    public int WcsBoxMappingChannelId = -1;
+
+    public bool IsTheSameMapping(TextureCoordinateMappingInfo other)
+    {
+      if (RhinoChannelToTexCoordsIdx.Count != other.RhinoChannelToTexCoordsIdx.Count)
+      {
+        return false;
+      }
+
+      foreach (var kvp in RhinoChannelToTexCoordsIdx)
+      {
+        if (!other.RhinoChannelToTexCoordsIdx.TryGetValue(kvp.Key, out int value))
+        {
+          return false;
+        }
+
+        if (kvp.Value != value)
+        {
+          return false;
+        }
+      }
+
+      if(WcsMappingChannelId != other.WcsMappingChannelId)
+      {
+        return false;
+      }
+
+      if(WcsBoxMappingChannelId != other.WcsBoxMappingChannelId)
+      {
+        return false;
+      }
+
+      return true;
+    }
+  }
+
   class ExportedMaterialAndMapping
   {
     public int GltfMaterialIndex = -1;
-    public Dictionary<int, int> RhinoMappingToGltfTexCoords = new Dictionary<int, int>();
+    public TextureCoordinateMappingInfo MappingInfo = new TextureCoordinateMappingInfo();
   }
 
   class RhinoDocGltfConverter
@@ -301,30 +341,9 @@ namespace Export_glTF
       return binaryBuffer.ToArray();
     }
 
-    private bool MappingToTexCoordDictsAreEqual(Dictionary<int, int> a, Dictionary<int, int> b)
-    {
-      if(a.Count != b.Count)
-      {
-        return false;
-      }
 
-      foreach(var kvp in a)
-      {
-        if(!b.TryGetValue(kvp.Key, out int value))
-        {
-          return false;
-        }
 
-        if(kvp.Value != value)
-        {
-          return false;
-        }
-      }
-
-      return true;
-    }
-
-    public int? GetMaterial(MeshMaterialPair pair, Dictionary<int, int> mappingToGltfTexCoord, Rhino.DocObjects.RhinoObject rhinoObject)
+    public int? GetMaterial(MeshMaterialPair pair, TextureCoordinateMappingInfo info, Rhino.DocObjects.RhinoObject rhinoObject)
     {
       if (!options.ExportMaterials)
       {
@@ -350,7 +369,7 @@ namespace Export_glTF
         foreach(ExportedMaterialAndMapping materialAndMapping in materials)
         {
           //The mappings from mapping channels to texcoord indices must be the same
-          if(MappingToTexCoordDictsAreEqual(materialAndMapping.RhinoMappingToGltfTexCoords, mappingToGltfTexCoord))
+          if(materialAndMapping.MappingInfo.IsTheSameMapping(info))
           {
             materialIndex = materialAndMapping.GltfMaterialIndex;
             break;
@@ -359,12 +378,12 @@ namespace Export_glTF
 
         if(materialIndex == -1)
         {
-          materialIndex = CreateMaterial(pair, mappingToGltfTexCoord);
+          materialIndex = CreateMaterial(pair, info);
 
           materials.Add(new ExportedMaterialAndMapping()
           {
             GltfMaterialIndex = materialIndex,
-            RhinoMappingToGltfTexCoords = mappingToGltfTexCoord
+            MappingInfo = info
           });
         }
       }
@@ -372,12 +391,12 @@ namespace Export_glTF
       {
         materials = new List<ExportedMaterialAndMapping>();
 
-        materialIndex = CreateMaterial(pair, mappingToGltfTexCoord);
+        materialIndex = CreateMaterial(pair, info);
 
         materials.Add(new ExportedMaterialAndMapping()
         {
           GltfMaterialIndex = materialIndex,
-          RhinoMappingToGltfTexCoords = mappingToGltfTexCoord
+          MappingInfo = info
         });
 
         materialsMap.Add(materialId, materials);
@@ -386,9 +405,9 @@ namespace Export_glTF
       return materialIndex;
     }
 
-    private int CreateMaterial(MeshMaterialPair pair, Dictionary<int, int> mappingToGltfTexCoord)
+    private int CreateMaterial(MeshMaterialPair pair, TextureCoordinateMappingInfo mappingInfo)
     {
-      RhinoMaterialGltfConverter materialConverter = new RhinoMaterialGltfConverter(options, binary, dummy, binaryBuffer, pair, mappingToGltfTexCoord, workflow);
+      RhinoMaterialGltfConverter materialConverter = new RhinoMaterialGltfConverter(options, binary, dummy, binaryBuffer, pair, mappingInfo, workflow);
       return materialConverter.AddMaterial();
     }
 

@@ -20,7 +20,7 @@ namespace Export_glTF
 
   class RhinoMaterialGltfConverter
   {
-    public RhinoMaterialGltfConverter(FileGltfWriteOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer, MeshMaterialPair pair, Dictionary<int, int> mappingToGltfTexCoord, Rhino.Render.LinearWorkflow workflow)
+    public RhinoMaterialGltfConverter(FileGltfWriteOptions options, bool binary, gltfSchemaDummy dummy, List<byte> binaryBuffer, MeshMaterialPair pair, TextureCoordinateMappingInfo mappingInfo, Rhino.Render.LinearWorkflow workflow)
     {
       this.options = options;
       this.binary = binary;
@@ -28,7 +28,7 @@ namespace Export_glTF
       this.binaryBuffer = binaryBuffer;
       this.pair = pair;
       this.workflow = workflow;
-      this.mappingToGltfTexCoord = mappingToGltfTexCoord;
+      this.mappingInfo = mappingInfo;
     }
 
     private FileGltfWriteOptions options = null;
@@ -39,7 +39,7 @@ namespace Export_glTF
 
     private MeshMaterialPair pair = null;
 
-    private Dictionary<int, int> mappingToGltfTexCoord = null;
+    private TextureCoordinateMappingInfo mappingInfo = null;
 
     public int AddMaterial()
     {
@@ -260,7 +260,7 @@ namespace Export_glTF
       glTFLoader.Schema.TextureInfo textureInfo = new glTFLoader.Schema.TextureInfo()
       {
         Index = textureIndex,
-        TexCoord = GetTexCoord(texture.MappingChannelId),
+        TexCoord = GetTexCoord(texture),
       };
 
       glTFExtensions.KHR_texture_transform transform = GetTextureTransform(texture);
@@ -369,11 +369,11 @@ namespace Export_glTF
         gltfMaterial.PbrMetallicRoughness.BaseColorTexture = info;
         if(baseColorTexture != null)
         {
-          info.TexCoord = GetTexCoord(baseColorTexture.GetMappingChannel());
+          info.TexCoord = GetTexCoord(baseColorDoc);
         }
         else if(alphaTexture != null)
         {
-          info.TexCoord = GetTexCoord(alphaTexture.GetMappingChannel());
+          info.TexCoord = GetTexCoord(alphaTextureDoc);
         }
 
         if (hasAlpha)
@@ -588,7 +588,7 @@ namespace Export_glTF
       glTFLoader.Schema.TextureInfo rc = new glTFLoader.Schema.TextureInfo()
       {
         Index = textureIdx,
-        TexCoord = GetTexCoord(texture.MappingChannelId),
+        TexCoord = GetTexCoord(texture),
       };
 
       glTFExtensions.KHR_texture_transform transform = GetTextureTransform(texture);
@@ -615,7 +615,7 @@ namespace Export_glTF
       glTFLoader.Schema.MaterialNormalTextureInfo rc = new glTFLoader.Schema.MaterialNormalTextureInfo()
       {
         Index = textureIdx,
-        TexCoord = GetTexCoord(normalTexture.MappingChannelId),
+        TexCoord = GetTexCoord(normalTexture),
         Scale = weight,
       };
 
@@ -653,7 +653,7 @@ namespace Export_glTF
       glTFLoader.Schema.MaterialOcclusionTextureInfo rc = new glTFLoader.Schema.MaterialOcclusionTextureInfo()
       {
         Index = textureIdx,
-        TexCoord = GetTexCoord(occlusionTexture.MappingChannelId),
+        TexCoord = GetTexCoord(occlusionTexture),
         Strength = GetTextureWeight(occlusionTexture),
       };
 
@@ -779,11 +779,11 @@ namespace Export_glTF
 
       if(hasMetalTexture)
       {
-        textureInfo.TexCoord = GetTexCoord(metalTexture.MappingChannelId);
+        textureInfo.TexCoord = GetTexCoord(metalTexture);
       }
       else if(hasRoughnessTexture)
       {
-        textureInfo.TexCoord = GetTexCoord(roughnessTexture.MappingChannelId);
+        textureInfo.TexCoord = GetTexCoord(roughnessTexture);
       }
 
       return textureInfo;
@@ -957,9 +957,21 @@ namespace Export_glTF
       return true;
     }
 
-    private int GetTexCoord(int mappingChannel)
+    private int GetTexCoord(Rhino.DocObjects.Texture texture)
     {
-      if(mappingToGltfTexCoord.TryGetValue(mappingChannel, out int texCoord))
+      int mappingChannelId = texture.MappingChannelId;
+
+      if (texture.WcsProjected && mappingInfo.WcsMappingChannelId != -1)
+      {
+        mappingChannelId = mappingInfo.WcsMappingChannelId;
+      }
+
+      if(texture.WcsBoxProjected && mappingInfo.WcsBoxMappingChannelId != -1)
+      {
+        mappingChannelId = mappingInfo.WcsBoxMappingChannelId;
+      }
+
+      if(mappingInfo.RhinoChannelToTexCoordsIdx.TryGetValue(mappingChannelId, out int texCoord))
       {
         return texCoord;
       }
