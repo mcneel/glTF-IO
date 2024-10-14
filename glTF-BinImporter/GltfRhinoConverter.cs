@@ -121,23 +121,6 @@ namespace Import_glTF
 
             System.Drawing.Bitmap bmp = new System.Drawing.Bitmap(stream);
 
-
-            if(RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-            {
-              // 2024-10-14 David E.
-              // On Mac, the pixel format of 'bmp' can sometimes be 32bppArgb even though, on Windows, it is 8bppIndexed.
-              // However, despite this the raw data of 'bmp' appears to be something different from 32bppArgb that I can't 
-              // quite figure out. In order to force the internals of System.Drawing.Bitmap to convert the pixel format to a 
-              // legible 32bppArgb, we can simply draw the bitmap onto a new bitmap. This ends up fixing the issue and we can 
-              // process the bitmap normally.
-              System.Drawing.Bitmap transformed_bmp = new System.Drawing.Bitmap(bmp.Width, bmp.Height, bmp.PixelFormat);
-              using (System.Drawing.Graphics g = System.Drawing.Graphics.FromImage(transformed_bmp))
-              {
-                g.DrawImage(bmp, 0, 0);
-              }
-              bmp = transformed_bmp;
-            }
-
             string name = glTF.Images[i].Name;
 
             images.Add(new ImageHolder(this, bmp, name));
