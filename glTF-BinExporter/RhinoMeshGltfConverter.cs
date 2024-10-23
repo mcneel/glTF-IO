@@ -108,30 +108,33 @@ namespace Export_glTF
 
       TextureCoordinateInfo rc = new TextureCoordinateInfo();
 
-      foreach (var texture in material.GetTextures())
+      if (material != null)
       {
-        if(texture.WcsProjected && rc.WcsMappingChannelId == -1)
+        foreach (var texture in material.GetTextures())
         {
-          var wcsCached = mesh.GetCachedTextureCoordinates(exportData.Object, texture);
-
-          if(wcsCached != null)
+          if (texture.WcsProjected && rc.WcsMappingChannelId == -1)
           {
-            max += 1;
+            var wcsCached = mesh.GetCachedTextureCoordinates(exportData.Object, texture);
 
-            dict.Add(max, ToTextureCoordinateList(wcsCached));
-            rc.WcsMappingChannelId = max;
+            if (wcsCached != null)
+            {
+              max += 1;
+
+              dict.Add(max, ToTextureCoordinateList(wcsCached));
+              rc.WcsMappingChannelId = max;
+            }
           }
-        }
-        else if(texture.WcsBoxProjected && rc.WcsBoxMappingChannelId == -1)
-        {
-          var wcsBoxCached = mesh.GetCachedTextureCoordinates(exportData.Object, texture);
-
-          if (wcsBoxCached != null)
+          else if (texture.WcsBoxProjected && rc.WcsBoxMappingChannelId == -1)
           {
-            max += 1;
+            var wcsBoxCached = mesh.GetCachedTextureCoordinates(exportData.Object, texture);
 
-            dict.Add(max, ToTextureCoordinateList(wcsBoxCached));
-            rc.WcsBoxMappingChannelId = max;
+            if (wcsBoxCached != null)
+            {
+              max += 1;
+
+              dict.Add(max, ToTextureCoordinateList(wcsBoxCached));
+              rc.WcsBoxMappingChannelId = max;
+            }
           }
         }
       }
