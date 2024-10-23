@@ -541,7 +541,8 @@ namespace Export_glTF
                 copy.Transform(item.Transform);
               }
 
-              if(item.Object.RenderMaterial == null && options.UseDisplayColorForUnsetMaterials)
+              Rhino.Render.RenderMaterial objectMaterial = GetObjectMaterial(item.Object);
+              if(objectMaterial == null && options.UseDisplayColorForUnsetMaterials)
               {
                 item.Meshes.Add(new MeshMaterialPair(copy, null));
               }
