@@ -4,11 +4,10 @@ using Rhino.PlugIns;
 
 // Plug-in Description Attributes - all of these are optional
 // These will show in Rhino's option dialog, in the tab Plug-ins
-[assembly: PlugInDescription(DescriptionType.Address, "3670 Woodland Park Avenue North\nSeattle WA 98103")]
+[assembly: PlugInDescription(DescriptionType.Address, "146 Canal St Suite 320\nSeattle WA 98103")]
 [assembly: PlugInDescription(DescriptionType.Country, "USA")]
 [assembly: PlugInDescription(DescriptionType.Email, "tech@mcneel.com")]
 [assembly: PlugInDescription(DescriptionType.Phone, "206-545-7000")]
-[assembly: PlugInDescription(DescriptionType.Fax, "206-545-7321")]
 [assembly: PlugInDescription(DescriptionType.Organization, "Robert McNeel & Associates")]
 [assembly: PlugInDescription(DescriptionType.UpdateUrl, "http://www.updates.mcneel.com")]
 [assembly: PlugInDescription(DescriptionType.WebSite, "http://www.mcneel.com")]
