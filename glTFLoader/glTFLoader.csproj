@@ -76,7 +76,7 @@
     <Compile Include="StreamExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Resources.Extensions" Version="7.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="System.Resources.Extensions" Version="9.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\DotNetSDK\Newtonsoft.Json\Src\Newtonsoft.Json\Newtonsoft.Json.Rhino.csproj" />

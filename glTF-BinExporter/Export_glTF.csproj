@@ -66,7 +66,7 @@
     <ProjectReference Include="..\glTFLoader\glTFLoader.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Resources.Extensions" Version="7.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="System.Resources.Extensions" Version="9.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="..\..\..\..\..\Localization\Rhino\cs-cz\XML\cs-czExport_glTF.xml">
