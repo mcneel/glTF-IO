@@ -17,20 +17,20 @@ namespace Import_glTF
 
   class ImageHolder
   {
-    public ImageHolder(GltfRhinoConverter converter, System.Drawing.Bitmap originalBmp, string name)
+    public ImageHolder(GltfRhinoConverter converter, string name, int imgIdx)
     {
       this.converter = converter;
-      this.originalBmp = originalBmp;
       this.name = name;
+      this.imgIdx = imgIdx;
 
-      if (string.IsNullOrEmpty(this.name))
+      if (string.IsNullOrEmpty(name))
       {
-        this.name = converter.GetUniqueName(this.name);
+        name = converter.GetUniqueName(name);
       }
     }
 
     GltfRhinoConverter converter = null;
-    System.Drawing.Bitmap originalBmp = null;
+    int imgIdx = -1;
     string name = null;
 
     string rgbaImagePath = null;
@@ -43,24 +43,33 @@ namespace Import_glTF
         null,
     };
 
+    System.Drawing.Bitmap GetOriginalBitmap()
+    {
+      Stream stream = glTFLoader.Interface.OpenImageFile(converter.glTF, imgIdx, converter.FilePath);
+      return new System.Drawing.Bitmap(stream);
+    }
+
     public string RgbaImagePath()
     {
       if (string.IsNullOrEmpty(rgbaImagePath))
       {
-        string unpackedPath = converter.GetUnpackedTexturePath();
-
-        string textureFilename = Path.Combine(unpackedPath, name + ".png");
-
-        int counter = 0;
-        while(File.Exists(textureFilename))
+        using (System.Drawing.Bitmap originalBmp = GetOriginalBitmap())
         {
-          counter++;
-          textureFilename = Path.Combine(unpackedPath, name + "-" + counter.ToString() + ".png");
+          string unpackedPath = converter.GetUnpackedTexturePath();
+
+          string textureFilename = Path.Combine(unpackedPath, name + ".png");
+
+          int counter = 0;
+          while (File.Exists(textureFilename))
+          {
+            counter++;
+            textureFilename = Path.Combine(unpackedPath, name + "-" + counter.ToString() + ".png");
+          }
+
+          originalBmp.Save(textureFilename);
+
+          rgbaImagePath = textureFilename;
         }
-
-        originalBmp.Save(textureFilename);
-
-        rgbaImagePath = textureFilename;
       }
 
       return rgbaImagePath;
@@ -78,11 +87,12 @@ namespace Import_glTF
 
         string textureFilename = Path.Combine(unpackedPath, channelName + ".png");
 
-        System.Drawing.Bitmap resolvedBmp = GetSingleChannelImage(channel);
+        using (System.Drawing.Bitmap resolvedBmp = GetSingleChannelImage(channel))
+        {
+          resolvedBmp.Save(textureFilename);
 
-        resolvedBmp.Save(textureFilename);
-
-        channelPaths[idx] = textureFilename;
+          channelPaths[idx] = textureFilename;
+        }
       }
 
       return channelPaths[idx];
@@ -90,44 +100,47 @@ namespace Import_glTF
 
     System.Drawing.Bitmap GetSingleChannelImage(ArgbChannel channel)
     {
-      int width = originalBmp.Width;
-      int height = originalBmp.Height;
-
-      int countPixels = width * height;
-
-      int[] resolvedPixels = new int[countPixels];
-
-      System.Drawing.Rectangle bmpRectangle = new System.Drawing.Rectangle(0, 0, width, height);
-
-      //Fetch original image pixels
+      using (System.Drawing.Bitmap originalBmp = GetOriginalBitmap())
       {
-        var originalBitmapData = originalBmp.LockBits(bmpRectangle, System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+        int width = originalBmp.Width;
+        int height = originalBmp.Height;
 
-        System.Runtime.InteropServices.Marshal.Copy(originalBitmapData.Scan0, resolvedPixels, 0, countPixels);
+        int countPixels = width * height;
 
-        originalBmp.UnlockBits(originalBitmapData);
+        int[] resolvedPixels = new int[countPixels];
+
+        System.Drawing.Rectangle bmpRectangle = new System.Drawing.Rectangle(0, 0, width, height);
+
+        //Fetch original image pixels
+        {
+          var originalBitmapData = originalBmp.LockBits(bmpRectangle, System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+
+          System.Runtime.InteropServices.Marshal.Copy(originalBitmapData.Scan0, resolvedPixels, 0, countPixels);
+
+          originalBmp.UnlockBits(originalBitmapData);
+        }
+
+        //Get single channel image
+        Parallel.For(0, countPixels, i =>
+        {
+          System.Drawing.Color color = System.Drawing.Color.FromArgb(resolvedPixels[i]);
+
+          resolvedPixels[i] = GetColorFromChannel(color, channel).ToArgb();
+        });
+
+        System.Drawing.Bitmap resolvedBmp = new System.Drawing.Bitmap(width, height);
+
+        //Dump in the new bitmap
+        {
+          var resolvedBmpData = resolvedBmp.LockBits(bmpRectangle, System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+          System.Runtime.InteropServices.Marshal.Copy(resolvedPixels, 0, resolvedBmpData.Scan0, countPixels);
+
+          resolvedBmp.UnlockBits(resolvedBmpData);
+        }
+
+        return resolvedBmp;
       }
-
-      //Get single channel image
-      Parallel.For(0, countPixels, i =>
-      {
-        System.Drawing.Color color = System.Drawing.Color.FromArgb(resolvedPixels[i]);
-
-        resolvedPixels[i] = GetColorFromChannel(color, channel).ToArgb();
-      });
-
-      System.Drawing.Bitmap resolvedBmp = new System.Drawing.Bitmap(width, height);
-
-      //Dump in the new bitmap
-      {
-        var resolvedBmpData = resolvedBmp.LockBits(bmpRectangle, System.Drawing.Imaging.ImageLockMode.WriteOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-        System.Runtime.InteropServices.Marshal.Copy(resolvedPixels, 0, resolvedBmpData.Scan0, countPixels);
-
-        resolvedBmp.UnlockBits(resolvedBmpData);
-      }
-
-      return resolvedBmp;
     }
 
     string StemForChannel(ArgbChannel channel)
