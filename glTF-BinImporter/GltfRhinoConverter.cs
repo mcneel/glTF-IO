@@ -3,25 +3,21 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
 
 namespace Import_glTF
 {
   class GltfRhinoConverter
   {
-    public GltfRhinoConverter(glTFLoader.Schema.Gltf gltf, Rhino.RhinoDoc doc, string path)
+    public GltfRhinoConverter(glTFLoader.Schema.Gltf gltf, Rhino.RhinoDoc doc, string filePath)
     {
       glTF = gltf;
       this.doc = doc;
 
-      this.path = path;
-      directory = Path.GetDirectoryName(path);
-      filename = Path.GetFileName(path);
-      filenameNoExtension = Path.GetFileNameWithoutExtension(path);
-      extension = Path.GetExtension(path);
+      FilePath = filePath;
+      directory = Path.GetDirectoryName(filePath);
+      filename = Path.GetFileName(filePath);
+      filenameNoExtension = Path.GetFileNameWithoutExtension(filePath);
+      extension = Path.GetExtension(filePath);
 
       binaryFile = extension.ToLower() == ".glb";
 
@@ -37,7 +33,12 @@ namespace Import_glTF
 
     Rhino.RhinoDoc doc = null;
 
-    string path = "";
+    public string FilePath
+    {
+      get;
+      private set;
+    } = "";
+
     string directory = "";
     string filename = "";
     string filenameNoExtension = "";
@@ -102,7 +103,7 @@ namespace Import_glTF
 
       for (int i = 0; i < glTF.Buffers.Length; i++)
       {
-        buffers.Add(glTFLoader.Interface.LoadBinaryBuffer(glTF, i, path));
+        buffers.Add(glTFLoader.Interface.LoadBinaryBuffer(glTF, i, FilePath));
       }
 
       if (glTF.Images != null)
@@ -117,13 +118,7 @@ namespace Import_glTF
           }
           else
           {
-            Stream stream = glTFLoader.Interface.OpenImageFile(glTF, i, path);
-
-            System.Drawing.Bitmap bmp = new System.Drawing.Bitmap(stream);
-
-            string name = glTF.Images[i].Name;
-
-            images.Add(new ImageHolder(this, bmp, name));
+            images.Add(new ImageHolder(this, img.Name, i));
           }
         }
       }
