@@ -19,14 +19,13 @@ namespace Import_glTF
   {
     public ImageHolder(GltfRhinoConverter converter, string name, int imgIdx)
     {
+      // Make sure name is valid before using to set this.name below.
+      if (string.IsNullOrEmpty(name))
+        name = converter.GetUniqueName(name);
+
       this.converter = converter;
       this.name = name;
       this.imgIdx = imgIdx;
-
-      if (string.IsNullOrEmpty(name))
-      {
-        name = converter.GetUniqueName(name);
-      }
     }
 
     GltfRhinoConverter converter = null;
