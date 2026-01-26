@@ -8,7 +8,7 @@
     <FileAlignment>512</FileAlignment>
     <WarningLevel>4</WarningLevel>
     <GenerateResourceUsePreserializedResources>True</GenerateResourceUsePreserializedResources>
-    <TargetFrameworkProfile />
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -76,7 +76,7 @@
     <Compile Include="StreamExtensions.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="System.Resources.Extensions" Version="9.0.0" ExcludeAssets="runtime" PrivateAssets="all" />
+    <PackageReference Include="System.Resources.Extensions" ExcludeAssets="runtime" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\..\DotNetSDK\Newtonsoft.Json\Src\Newtonsoft.Json\Newtonsoft.Json.Rhino.csproj" />
