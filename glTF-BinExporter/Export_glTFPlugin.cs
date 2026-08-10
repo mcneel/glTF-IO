@@ -50,7 +50,7 @@ namespace Export_glTF
         ExportOptionsDialog optionsDlg = new ExportOptionsDialog();
 
         optionsDlg.RestorePosition();
-        var result = optionsDlg.ShowModal();
+        var result = optionsDlg.ShowModal(RhinoEtoApp.MainWindow);
 
         if (result != Result.Success)
         {
