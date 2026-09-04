@@ -18,6 +18,8 @@ namespace Export_glTF
     private CheckBox useDisplayColorForUnsetMaterial = new CheckBox();
     private CheckBox exportLayers = new CheckBox();
 
+    private CheckBox useRenderMeshes = new CheckBox();
+
     private GroupBox subdBox = new GroupBox();
     private CheckBox useSubdControlNet = new CheckBox();
     private Label subdLevelLabel = new Label();
@@ -60,6 +62,8 @@ namespace Export_glTF
       useDisplayColorForUnsetMaterial.Text = Rhino.UI.Localization.LocalizeString("Use display color for objects with no material set", 6);
 
       exportLayers.Text = Rhino.UI.Localization.LocalizeString("Export Layers", 7);
+
+      useRenderMeshes.Text = Rhino.UI.LOC.STR("Use render meshes");
 
       subdBox.Text = Rhino.UI.Localization.LocalizeString("SubD Meshing", 8);
 
@@ -187,6 +191,7 @@ namespace Export_glTF
             new TableRow(exportVertexNormals),
             new TableRow(exportOpenMeshes),
             new TableRow(exportVertexColors),
+            new TableRow(useRenderMeshes),
             null,
           },
         },
@@ -238,6 +243,8 @@ namespace Export_glTF
 
       subdLevel.Value = Export_glTFPlugin.SubDLevel;
 
+      useRenderMeshes.Checked = Export_glTFPlugin.UseRenderMeshes;
+
       exportTextureCoordinates.Checked = Export_glTFPlugin.ExportTextureCoordinates;
       exportVertexNormals.Checked = Export_glTFPlugin.ExportVertexNormals;
       exportOpenMeshes.Checked = Export_glTFPlugin.ExportOpenMeshes;
@@ -266,6 +273,8 @@ namespace Export_glTF
       Export_glTFPlugin.SubDExportMode = controlNet ? SubDMode.ControlNet : SubDMode.Surface;
 
       Export_glTFPlugin.SubDLevel = subdLevel.Value;
+
+      Export_glTFPlugin.UseRenderMeshes = GetCheckboxValue(useRenderMeshes);
 
       Export_glTFPlugin.ExportTextureCoordinates = GetCheckboxValue(exportTextureCoordinates);
       Export_glTFPlugin.ExportVertexNormals = GetCheckboxValue(exportVertexNormals);

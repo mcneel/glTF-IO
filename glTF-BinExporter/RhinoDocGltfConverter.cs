@@ -163,8 +163,22 @@ namespace Export_glTF
 
     public readonly Rhino.Geometry.Transform DocumentToGltfScale;
 
+    //Passed into/modified by RhinoObject.MeshObjects
+    public int MeshDialogStyle { get; set; } = -1;
+
+    //True when the user cancelled the mesh dialog.
+    public bool Cancelled { get; private set; } = false;
+
     public glTFLoader.Schema.Gltf ConvertToGltf()
     {
+      //Do this first, it is where the user gets asked for meshing parameters
+      var sanitized = SanitizeRhinoObjects(objects);
+
+      if (Cancelled)
+      {
+        return null;
+      }
+
       dummy.Scene = 0;
       dummy.Scenes.Add(new gltfSchemaSceneDummy());
 
@@ -223,6 +237,12 @@ namespace Export_glTF
           return false;
         }
 
+        //Curves are only written out when the render meshes are being exported
+        if (!options.UseRenderMeshes)
+        {
+          return false;
+        }
+
         var flags = Rhino.Render.CustomRenderMeshes.RenderMeshProvider.Flags.Recursive;
         Rhino.Render.CustomRenderMeshes.RenderMeshes renderMeshes = x.RenderMeshes(Rhino.Geometry.MeshType.Render, null, null, ref flags, null, null);
 
@@ -249,8 +269,6 @@ namespace Export_glTF
           AddNode(nodeIndex, curveObject);
         }
       }
-
-      var sanitized = SanitizeRhinoObjects(objects);
 
       foreach (ObjectExportData exportData in sanitized)
       {
@@ -503,6 +521,18 @@ namespace Export_glTF
         }
       }
 
+      Dictionary<Guid, Rhino.Geometry.Mesh> exportMeshes = null;
+
+      if (!options.UseRenderMeshes)
+      {
+        exportMeshes = CreateExportMeshes(explodedObjects);
+
+        if (exportMeshes == null)
+        {
+          return new List<ObjectExportData>();
+        }
+      }
+
       var flags = Rhino.Render.CustomRenderMeshes.RenderMeshProvider.Flags.Recursive;
 
       foreach (var item in explodedObjects)
@@ -511,14 +541,35 @@ namespace Export_glTF
         if (
           item.Object.ObjectType == Rhino.DocObjects.ObjectType.SubD &&
           item.Object.Geometry is Rhino.Geometry.SubD subd &&
-          options.SubDMeshType == FileGltfWriteOptions.SubDMeshing.ControlNet
+          (options.SubDMeshType == FileGltfWriteOptions.SubDMeshing.ControlNet || !options.UseRenderMeshes)
           )
         {
-          Rhino.Geometry.Mesh mesh = Rhino.Geometry.Mesh.CreateFromSubDControlNet(subd);
+          Rhino.Geometry.Mesh mesh = options.SubDMeshType == FileGltfWriteOptions.SubDMeshing.ControlNet ?
+            Rhino.Geometry.Mesh.CreateFromSubDControlNet(subd) :
+            Rhino.Geometry.Mesh.CreateFromSubD(subd, options.SubDSurfaceMeshingDensity);
 
-          mesh.Transform(item.Transform);
+          if (mesh != null)
+          {
+            mesh.Transform(item.Transform);
 
-          item.Meshes.Add(new MeshMaterialPair(mesh, GetObjectMaterial(item.Object)));
+            item.Meshes.Add(new MeshMaterialPair(mesh, GetObjectMaterial(item.Object)));
+          }
+        }
+        else if (!options.UseRenderMeshes)
+        {
+          if (exportMeshes.TryGetValue(item.Object.Id, out Rhino.Geometry.Mesh exportMesh))
+          {
+            //The same object turns up once per block instance it belongs to, so never hand out the original
+            Rhino.Geometry.Mesh copy = new Rhino.Geometry.Mesh();
+            copy.CopyFrom(exportMesh);
+
+            if (!item.Transform.IsIdentity)
+            {
+              copy.Transform(item.Transform);
+            }
+
+            item.Meshes.Add(new MeshMaterialPair(copy, GetObjectMaterial(item.Object)));
+          }
         }
         else
         {
@@ -587,6 +638,64 @@ namespace Export_glTF
       explodedObjects.RemoveAll(x => x.Meshes.Count == 0);
 
       return explodedObjects;
+    }
+
+    //Non render meshes path
+    private Dictionary<Guid, Rhino.Geometry.Mesh> CreateExportMeshes(List<ObjectExportData> explodedObjects)
+    {
+      List<Rhino.DocObjects.RhinoObject> toMesh = new List<Rhino.DocObjects.RhinoObject>();
+      HashSet<Guid> meshing = new HashSet<Guid>();
+
+      foreach (ObjectExportData item in explodedObjects)
+      {
+        if (item.Object.ObjectType == Rhino.DocObjects.ObjectType.SubD)
+        {
+          continue;
+        }
+
+        if (!item.Object.IsMeshable(Rhino.Geometry.MeshType.Any))
+        {
+          continue;
+        }
+
+        //An object used by more than one block instance only needs meshing once
+        if (meshing.Add(item.Object.Id))
+        {
+          toMesh.Add(item.Object);
+        }
+      }
+
+      Dictionary<Guid, Rhino.Geometry.Mesh> rc = new Dictionary<Guid, Rhino.Geometry.Mesh>();
+
+      if (toMesh.Count == 0)
+      {
+        return rc;
+      }
+
+      Rhino.Geometry.MeshingParameters parameters = options.MeshParameters ?? Rhino.Geometry.MeshingParameters.Default;
+      int uiStyle = MeshDialogStyle;
+
+      Rhino.Commands.Result result = Rhino.DocObjects.RhinoObject.MeshObjects(toMesh, ref parameters, ref uiStyle, Rhino.Geometry.Transform.Identity, out Rhino.Geometry.Mesh[] meshes, out Rhino.DocObjects.ObjectAttributes[] attributes);
+
+      if (result == Rhino.Commands.Result.Cancel)
+      {
+        Cancelled = true;
+        return null;
+      }
+
+      MeshDialogStyle = uiStyle;
+      options.MeshParameters = parameters;
+
+      //One mesh comes back per object that could be meshed, identified by its attributes
+      for (int i = 0; i < meshes.Length && i < attributes.Length; i++)
+      {
+        if (meshes[i] != null)
+        {
+          rc[attributes[i].ObjectId] = meshes[i];
+        }
+      }
+
+      return rc;
     }
 
     private Rhino.Render.RenderMaterial GetObjectMaterial(Rhino.DocObjects.RhinoObject rhinoObject)

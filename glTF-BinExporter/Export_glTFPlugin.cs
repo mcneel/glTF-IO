@@ -1,6 +1,5 @@
 using Rhino;
 using Rhino.Commands;
-using Rhino.DocObjects;
 using Rhino.FileIO;
 using Rhino.PlugIns;
 using Rhino.UI;
@@ -73,9 +72,22 @@ namespace Export_glTF
 
       IEnumerable<Rhino.DocObjects.RhinoObject> objects = GetObjectsToExport(doc, options);
 
-      if (!DoExport(filename, exportOptions, binary, doc, objects, doc.RenderSettings.LinearWorkflow))
+      RhinoDocGltfConverter converter = new RhinoDocGltfConverter(exportOptions, binary, doc, objects, doc.RenderSettings.LinearWorkflow);
+
+      if (!exportOptions.UseRenderMeshes && !doc.IsHeadless && !options.SuppressAllInput && !options.SuppressDialogBoxes)
       {
-        return WriteFileResult.Failure;
+        converter.MeshDialogStyle = UseSimpleMeshDialog ? 0 : 1;
+      }
+
+      if (!WriteGltf(filename, binary, converter))
+      {
+        return converter.Cancelled ? WriteFileResult.Cancel : WriteFileResult.Failure;
+      }
+
+      if (converter.MeshDialogStyle >= 0)
+      {
+        UseSimpleMeshDialog = converter.MeshDialogStyle == 0;
+        MeshingParameters = exportOptions.MeshParameters;
       }
 
       return WriteFileResult.Success;
@@ -110,7 +122,18 @@ namespace Export_glTF
     public static bool DoExport(string fileName, FileGltfWriteOptions options, bool binary, RhinoDoc doc, IEnumerable<Rhino.DocObjects.RhinoObject> rhinoObjects, Rhino.Render.LinearWorkflow workflow)
     {
       RhinoDocGltfConverter converter = new RhinoDocGltfConverter(options, binary, doc, rhinoObjects, workflow);
+
+      return WriteGltf(fileName, binary, converter);
+    }
+
+    private static bool WriteGltf(string fileName, bool binary, RhinoDocGltfConverter converter)
+    {
       glTFLoader.Schema.Gltf gltf = converter.ConvertToGltf();
+
+      if (gltf == null)
+      {
+        return false;
+      }
 
       if (binary)
       {
@@ -217,6 +240,70 @@ namespace Export_glTF
       set => Instance.Settings.SetBool(ExportVertexColorsKey, value);
     }
 
+    private const string useRenderMeshesKey = "UseRenderMeshes";
+    public const bool UseRenderMeshesDefault = true;
+
+    public static bool UseRenderMeshes
+    {
+      get => Instance.Settings.GetBool(useRenderMeshesKey, UseRenderMeshesDefault);
+      set => Instance.Settings.SetBool(useRenderMeshesKey, value);
+    }
+
+    private const string useSimpleMeshDialogKey = "UseSimpleMeshDialog";
+    public const bool UseSimpleMeshDialogDefault = true;
+
+    public static bool UseSimpleMeshDialog
+    {
+      get => Instance.Settings.GetBool(useSimpleMeshDialogKey, UseSimpleMeshDialogDefault);
+      set => Instance.Settings.SetBool(useSimpleMeshDialogKey, value);
+    }
+
+    //TODO Get rid of this when http://mcneel.myjetbrains.com/youtrack/issue/RH-29227 is done
+    //private readonly MeshingParameters m_mp = MeshingParameters.Default;
+    public static Rhino.Geometry.MeshingParameters MeshingParameters
+    {
+      get
+      {
+        Rhino.Geometry.MeshingParameters mp = Rhino.Geometry.MeshingParameters.Default;
+        mp.JaggedSeams = Instance.Settings.GetBool("MeshingParameters.JaggedSeams", mp.JaggedSeams);
+        mp.RefineGrid = Instance.Settings.GetBool("MeshingParameters.RefineGrid", mp.RefineGrid);
+        mp.SimplePlanes = Instance.Settings.GetBool("MeshingParameters.SimplePlanes", mp.SimplePlanes);
+        mp.ComputeCurvature = Instance.Settings.GetBool("MeshingParameters.ComputeCurvature", mp.ComputeCurvature);
+        mp.ClosedObjectPostProcess = Instance.Settings.GetBool("MeshingParameters.ClosedObjectPostProcess", mp.ClosedObjectPostProcess);
+        mp.GridMinCount = Instance.Settings.GetInteger("MeshingParameters.GridMinCount", mp.GridMinCount);
+        mp.GridMaxCount = Instance.Settings.GetInteger("MeshingParameters.GridMaxCount", mp.GridMaxCount);
+        mp.GridAngle = Instance.Settings.GetDouble("MeshingParameters.GridAngle", mp.GridAngle);
+        mp.GridAspectRatio = Instance.Settings.GetDouble("MeshingParameters.GridAspectRatio", mp.GridAspectRatio);
+        mp.GridAmplification = Instance.Settings.GetDouble("MeshingParameters.GridAmplification", mp.GridAmplification);
+        mp.Tolerance = Instance.Settings.GetDouble("MeshingParameters.Tolerance", mp.Tolerance);
+        mp.MinimumTolerance = Instance.Settings.GetDouble("MeshingParameters.MinimumTolerance", mp.MinimumTolerance);
+        mp.RelativeTolerance = Instance.Settings.GetDouble("MeshingParameters.RelativeTolerance", mp.RelativeTolerance);
+        mp.MinimumEdgeLength = Instance.Settings.GetDouble("MeshingParameters.MinimumEdgeLength", mp.MinimumEdgeLength);
+        mp.MaximumEdgeLength = Instance.Settings.GetDouble("MeshingParameters.MaximumEdgeLength", mp.MaximumEdgeLength);
+        mp.RefineAngle = Instance.Settings.GetDouble("MeshingParameters.RefineAngle", mp.RefineAngle);
+        return mp;
+      }
+      set
+      {
+        Instance.Settings.SetBool("MeshingParameters.JaggedSeams", value.JaggedSeams);
+        Instance.Settings.SetBool("MeshingParameters.RefineGrid", value.RefineGrid);
+        Instance.Settings.SetBool("MeshingParameters.SimplePlanes", value.SimplePlanes);
+        Instance.Settings.SetBool("MeshingParameters.ComputeCurvature", value.ComputeCurvature);
+        Instance.Settings.SetBool("MeshingParameters.ClosedObjectPostProcess", value.ClosedObjectPostProcess);
+        Instance.Settings.SetInteger("MeshingParameters.GridMinCount", value.GridMinCount);
+        Instance.Settings.SetInteger("MeshingParameters.GridMaxCount", value.GridMaxCount);
+        Instance.Settings.SetDouble("MeshingParameters.GridAngle", value.GridAngle);
+        Instance.Settings.SetDouble("MeshingParameters.GridAspectRatio", value.GridAspectRatio);
+        Instance.Settings.SetDouble("MeshingParameters.GridAmplification", value.GridAmplification);
+        Instance.Settings.SetDouble("MeshingParameters.Tolerance", value.Tolerance);
+        Instance.Settings.SetDouble("MeshingParameters.MinimumTolerance", value.MinimumTolerance);
+        Instance.Settings.SetDouble("MeshingParameters.RelativeTolerance", value.RelativeTolerance);
+        Instance.Settings.SetDouble("MeshingParameters.MinimumEdgeLength", value.MinimumEdgeLength);
+        Instance.Settings.SetDouble("MeshingParameters.MaximumEdgeLength", value.MaximumEdgeLength);
+        Instance.Settings.SetDouble("MeshingParameters.RefineAngle", value.RefineAngle);
+      }
+    }
+
     private const string exportOpenMeshesKey = "ExportOpenMeshes";
     public const bool ExportOpenMeshesDefault = true;
 
@@ -299,6 +386,9 @@ namespace Export_glTF
         ExportOpenMeshes = ExportOpenMeshes,
         ExportVertexColors = ExportVertexColors,
 
+        UseRenderMeshes = UseRenderMeshes,
+        MeshParameters = MeshingParameters,
+
         UseDracoCompression = UseDracoCompression,
         DracoCompressionLevel = DracoCompressionLevel,
         DracoQuantizationBitsPosition = DracoQuantizationBitsPosition,
@@ -343,6 +433,16 @@ namespace Export_glTF
       if (dict.TryGetInteger(nameof(FileGltfWriteOptions.SubDSurfaceMeshingDensity), out int meshDensity))
       {
         rc.SubDSurfaceMeshingDensity = meshDensity;
+      }
+
+      if (dict.TryGetBool(nameof(FileGltfWriteOptions.UseRenderMeshes), out bool useRenderMeshes))
+      {
+        rc.UseRenderMeshes = useRenderMeshes;
+      }
+
+      if (dict.TryGetValue(nameof(FileGltfWriteOptions.MeshParameters), out object meshParameters) && meshParameters is Rhino.Geometry.MeshingParameters parameters)
+      {
+        rc.MeshParameters = parameters;
       }
 
       if (dict.TryGetBool(nameof(FileGltfWriteOptions.ExportTextureCoordinates), out bool exportTextureCoordinates))
