@@ -63,7 +63,7 @@ namespace Export_glTF
 
       exportLayers.Text = Rhino.UI.Localization.LocalizeString("Export Layers", 7);
 
-      useRenderMeshes.Text = Rhino.UI.LOC.STR("Use render meshes");
+      useRenderMeshes.Text = Rhino.UI.Localization.LocalizeString("Use render meshes", 18);
 
       subdBox.Text = Rhino.UI.Localization.LocalizeString("SubD Meshing", 8);
 
