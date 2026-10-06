@@ -4,13 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Eto.Forms;
+using Rhino.UI.Controls;
 
 namespace Export_glTF
 {
   class ExportOptionsDialog : Rhino.UI.Forms.CommandDialog
   {
-    private const int DefaultPadding = 5;
-    private static readonly Eto.Drawing.Size DefaultSpacing = new Eto.Drawing.Size(2, 2);
+    private const int GroupGap = 12; // between the sections of a tab
+    private const int RowSpacing = 5; // between the rows of a group
+    private const int InputWidth = 75;
 
     private CheckBox mapZtoY = new CheckBox();
     private CheckBox exportMaterials = new CheckBox();
@@ -20,10 +22,10 @@ namespace Export_glTF
 
     private CheckBox useRenderMeshes = new CheckBox();
 
-    private GroupBox subdBox = new GroupBox();
     private CheckBox useSubdControlNet = new CheckBox();
     private Label subdLevelLabel = new Label();
-    private Slider subdLevel = new Slider();
+    private Eto.Forms.Slider subdLevel = new Eto.Forms.Slider();
+    private Label subdLevelValue = new Label();
 
     private CheckBox exportTextureCoordinates = new CheckBox();
     private CheckBox exportVertexNormals = new CheckBox();
@@ -33,12 +35,14 @@ namespace Export_glTF
     private CheckBox useDracoCompressionCheck = new CheckBox();
 
     private Label dracoCompressionLabel = new Label();
-    private NumericStepper dracoCompressionLevelInput = new NumericStepper();
+    private NumericUpDownWithUnitParsing dracoCompressionLevelInput = NewStepper(1, 10);
 
-    private Label dracoQuantizationBitsLabel = new Label();
-    private NumericStepper dracoQuantizationBitsInputPosition = new NumericStepper() { DecimalPlaces = 0, MinValue = 8, MaxValue = 32 };
-    private NumericStepper dracoQuantizationBitsInputNormal = new NumericStepper() { DecimalPlaces = 0, MinValue = 8, MaxValue = 32 };
-    private NumericStepper dracoQuantizationBitsInputTexture = new NumericStepper() { DecimalPlaces = 0, MinValue = 8, MaxValue = 32 };
+    private Label dracoQuantizationBitsPositionLabel = new Label();
+    private Label dracoQuantizationBitsNormalLabel = new Label();
+    private Label dracoQuantizationBitsTextureLabel = new Label();
+    private NumericUpDownWithUnitParsing dracoQuantizationBitsInputPosition = NewStepper(8, 32);
+    private NumericUpDownWithUnitParsing dracoQuantizationBitsInputNormal = NewStepper(8, 32);
+    private NumericUpDownWithUnitParsing dracoQuantizationBitsInputTexture = NewStepper(8, 32);
 
     private CheckBox useSettingsDontShowDialogCheck = new CheckBox();
 
@@ -61,32 +65,23 @@ namespace Export_glTF
 
       useDisplayColorForUnsetMaterial.Text = Rhino.UI.Localization.LocalizeString("Use display color for objects with no material set", 6);
 
-      exportLayers.Text = Rhino.UI.Localization.LocalizeString("Export Layers", 7);
+      exportLayers.Text = Rhino.UI.LOC.STR("Export layers");
 
       useRenderMeshes.Text = Rhino.UI.Localization.LocalizeString("Use render meshes", 18);
-
-      subdBox.Text = Rhino.UI.Localization.LocalizeString("SubD Meshing", 8);
 
       useSubdControlNet.Text = Rhino.UI.Localization.LocalizeString("Use control net", 9);
 
       subdLevelLabel.Text = Rhino.UI.Localization.LocalizeString("Subdivision level", 10);
-      subdLevelLabel.TextAlignment = TextAlignment.Left;
 
       subdLevel.SnapToTick = true;
       subdLevel.TickFrequency = 1;
       subdLevel.MinValue = 1;
       subdLevel.MaxValue = 5;
+      subdLevel.Width = 120;
 
-      subdBox.Content = new TableLayout()
-      {
-        Padding = DefaultPadding,
-        Spacing = DefaultSpacing,
-        Rows =
-        {
-          new TableRow(useSubdControlNet, null),
-          new TableRow(subdLevel, subdLevelLabel),
-        }
-      };
+      // show the level next to the slider
+      subdLevelValue.VerticalAlignment = VerticalAlignment.Center;
+      subdLevel.ValueChanged += (sender, e) => subdLevelValue.Text = subdLevel.Value.ToString();
 
       exportTextureCoordinates.Text = Rhino.UI.Localization.LocalizeString("Export texture coordinates", 11);
 
@@ -98,14 +93,13 @@ namespace Export_glTF
 
       useDracoCompressionCheck.Text = Rhino.UI.Localization.LocalizeString("Use Draco compression", 15);
 
-      dracoCompressionLabel.Text = Rhino.UI.Localization.LocalizeString("Draco compression Level", 16);
-      dracoCompressionLevelInput.DecimalPlaces = 0;
-      dracoCompressionLevelInput.MinValue = 1;
-      dracoCompressionLevelInput.MaxValue = 10;
+      dracoCompressionLabel.Text = Rhino.UI.LOC.STR("Draco compression level");
 
-      dracoQuantizationBitsLabel.Text = Rhino.UI.Localization.LocalizeString("Quantization", 17);
+      dracoQuantizationBitsPositionLabel.Text = Rhino.UI.Localization.LocalizeString("Position", 22);
+      dracoQuantizationBitsNormalLabel.Text = Rhino.UI.Localization.LocalizeString("Normal", 23);
+      dracoQuantizationBitsTextureLabel.Text = Rhino.UI.Localization.LocalizeString("Texture", 24);
 
-      useSettingsDontShowDialogCheck.Text = Rhino.UI.Localization.LocalizeString("Always use these settings. Do not show this dialog again.", 20);
+      useSettingsDontShowDialogCheck.Text = Rhino.UI.LOC.STR("Always use these settings and don't show this dialog again");
 
       OptionsToDialog();
 
@@ -114,115 +108,117 @@ namespace Export_glTF
 
       useSubdControlNet.CheckedChanged += UseSubdControlNet_CheckedChanged;
 
-      var dracoGroupBox = new GroupBox() { Text = Rhino.UI.Localization.LocalizeString("Draco Quantization Bits", 21) };
-      dracoGroupBox.Content = new TableLayout()
-      {
-        Padding = DefaultPadding,
-        Spacing = DefaultSpacing,
-        Rows =
-        {
-          new TableRow
-          (
-            new Label()
-            {
-              Text = Rhino.UI.Localization.LocalizeString("Position", 22),
-              TextAlignment = TextAlignment.Left,
-            },
-            new Label()
-            {
-              Text = Rhino.UI.Localization.LocalizeString("Normal", 23),
-              TextAlignment = TextAlignment.Left,
-            },
-            new Label()
-            {
-              Text = Rhino.UI.Localization.LocalizeString("Texture", 24),
-              TextAlignment = TextAlignment.Left,
-            }
-          ),
-          new TableRow(dracoQuantizationBitsInputPosition, dracoQuantizationBitsInputNormal, dracoQuantizationBitsInputTexture)
-        }
-      };
-
-      var layout = new DynamicLayout()
-      {
-        Padding = DefaultPadding,
-        Spacing = DefaultSpacing,
-      };
-
-      layout.AddSeparateRow(useDracoCompressionCheck, null);
-      layout.AddSeparateRow(dracoCompressionLabel, dracoCompressionLevelInput, null);
-      layout.AddSeparateRow(dracoGroupBox, null);
-      layout.AddSeparateRow(null);
-
       TabControl tabControl = new TabControl();
 
-      TabPage formattingPage = new TabPage()
+      tabControl.Pages.Add(new TabPage()
       {
         Text = Rhino.UI.Localization.LocalizeString("Formatting", 25),
-        Content = new TableLayout()
-        {
-          Padding = DefaultPadding,
-          Spacing = DefaultSpacing,
-          Rows =
-          {
-            new TableRow(mapZtoY),
-            new TableRow(exportMaterials),
-            new TableRow(cullBackfaces),
-            new TableRow(useDisplayColorForUnsetMaterial),
-            new TableRow(exportLayers),
-            null,
-          },
-        },
-      };
+        Content = Tab(
+          Rows(mapZtoY, exportMaterials, cullBackfaces, useDisplayColorForUnsetMaterial, exportLayers)
+        ),
+      });
 
-      tabControl.Pages.Add(formattingPage);
-
-      TabPage meshPage = new TabPage()
+      // all lead-in labels of a tab share one width, so the inputs line up
+      var meshLabels = new List<Label>();
+      ShareWidth(meshLabels);
+      tabControl.Pages.Add(new TabPage()
       {
         Text = Rhino.UI.Localization.LocalizeString("Mesh", 26),
-        Content = new TableLayout()
-        {
-          Padding = DefaultPadding,
-          Spacing = DefaultSpacing,
-          Rows =
-          {
-            new TableRow(subdBox),
-            new TableRow(exportTextureCoordinates),
-            new TableRow(exportVertexNormals),
-            new TableRow(exportOpenMeshes),
-            new TableRow(exportVertexColors),
-            new TableRow(useRenderMeshes),
-            null,
-          },
-        },
-      };
+        Content = Tab(
+          Section(Rhino.UI.Localization.LocalizeString("SubD Meshing", 8),
+            useSubdControlNet,
+            LeadIn(meshLabels, subdLevelLabel, new TableLayout() { Spacing = new Eto.Drawing.Size(8, 0), Rows = { new TableRow(subdLevel, subdLevelValue) } })),
+          Rows(exportTextureCoordinates, exportVertexNormals, exportOpenMeshes, exportVertexColors, useRenderMeshes)
+        ),
+      });
 
-      tabControl.Pages.Add(meshPage);
-
-      TabPage compressionPage = new TabPage()
+      var compressionLabels = new List<Label>();
+      ShareWidth(compressionLabels);
+      tabControl.Pages.Add(new TabPage()
       {
         Text = Rhino.UI.Localization.LocalizeString("Compression", 27),
-        Content = layout,
-      };
+        Content = Tab(
+          Rows(useDracoCompressionCheck, LeadIn(compressionLabels, dracoCompressionLabel, dracoCompressionLevelInput)),
+          Section(Rhino.UI.Localization.LocalizeString("Draco Quantization Bits", 21),
+            LeadIn(compressionLabels, dracoQuantizationBitsPositionLabel, dracoQuantizationBitsInputPosition),
+            LeadIn(compressionLabels, dracoQuantizationBitsNormalLabel, dracoQuantizationBitsInputNormal),
+            LeadIn(compressionLabels, dracoQuantizationBitsTextureLabel, dracoQuantizationBitsInputTexture))
+        ),
+      });
 
-      tabControl.Pages.Add(compressionPage);
-
+      // The tabs take any extra height, and the checkbox is a row of the same table, so the
+      // dialog is at least as wide as its text
       this.Content = new TableLayout()
       {
-        Padding = DefaultPadding,
-        Spacing = DefaultSpacing,
+        Spacing = new Eto.Drawing.Size(5, GroupGap),
         Rows =
         {
-          new TableRow(tabControl)
-          {
-            ScaleHeight = true,
-          },
-          new TableRow(useSettingsDontShowDialogCheck)
-          {
-            ScaleHeight = false,
-          },
+          new TableRow(tabControl) { ScaleHeight = true },
+          new TableRow(useSettingsDontShowDialogCheck),
         }
       };
+    }
+
+    private static NumericUpDownWithUnitParsing NewStepper(double min, double max)
+    {
+      return new NumericUpDownWithUnitParsing()
+      {
+        ShowStepper = true,
+        Width = InputWidth,
+        DecimalPlaces = 0,
+        Increment = 1,
+        MinValue = min,
+        MaxValue = max,
+      };
+    }
+
+    /// <summary>A section: a Title Case heading with a divider line, then its rows at the same left edge</summary>
+    private static TableLayout Section(string title, params TableRow[] rows)
+    {
+      var table = new TableLayout() { Spacing = new Eto.Drawing.Size(0, RowSpacing), Rows = { new LabelSeparator() { Text = title } } };
+      foreach (var row in rows)
+        table.Rows.Add(row);
+      return table;
+    }
+
+    /// <summary>Rows of checkboxes, RowSpacing apart</summary>
+    private static TableLayout Rows(params TableRow[] rows)
+    {
+      var table = new TableLayout() { Spacing = new Eto.Drawing.Size(0, RowSpacing) };
+      foreach (var row in rows)
+        table.Rows.Add(row);
+      return table;
+    }
+
+    /// <summary>A label with its input to the right; the labels collected in <paramref name="labels"/> share one width</summary>
+    private static TableLayout LeadIn(List<Label> labels, Label label, Control input)
+    {
+      label.VerticalAlignment = VerticalAlignment.Center;
+      labels.Add(label);
+      return new TableLayout() { Spacing = new Eto.Drawing.Size(8, 0), Rows = { new TableRow(label, input, null) } };
+    }
+
+    /// <summary>Gives the lead-in labels of a tab the width of the widest one once the dialog has loaded</summary>
+    private void ShareWidth(List<Label> labels)
+    {
+      LoadComplete += (sender, e) =>
+      {
+        int width = 0;
+        foreach (var label in labels)
+          width = Math.Max(width, (int)Math.Ceiling(label.GetPreferredSize().Width));
+        foreach (var label in labels)
+          label.Width = width;
+      };
+    }
+
+    /// <summary>The content of a tab: groups GroupGap apart, placed at the top of the tab</summary>
+    private static Control Tab(params Control[] groups)
+    {
+      var table = new TableLayout() { Spacing = new Eto.Drawing.Size(0, GroupGap), Padding = new Eto.Drawing.Padding(5) };
+      foreach (var group in groups)
+        table.Rows.Add(group);
+      table.Rows.Add(null);
+      return table;
     }
 
     private void OptionsToDialog()
@@ -242,6 +238,7 @@ namespace Export_glTF
       EnabledDisableSubDLevel(!controlNet);
 
       subdLevel.Value = Export_glTFPlugin.SubDLevel;
+      subdLevelValue.Text = subdLevel.Value.ToString();
 
       useRenderMeshes.Checked = Export_glTFPlugin.UseRenderMeshes;
 
@@ -295,12 +292,18 @@ namespace Export_glTF
 
     private void EnabledDisableSubDLevel(bool enable)
     {
+      subdLevelLabel.Enabled = enable;
       subdLevel.Enabled = enable;
+      subdLevelValue.Enabled = enable;
     }
 
     private void EnableDisableDracoControls(bool enable)
     {
+      dracoCompressionLabel.Enabled = enable;
       dracoCompressionLevelInput.Enabled = enable;
+      dracoQuantizationBitsPositionLabel.Enabled = enable;
+      dracoQuantizationBitsNormalLabel.Enabled = enable;
+      dracoQuantizationBitsTextureLabel.Enabled = enable;
       dracoQuantizationBitsInputPosition.Enabled = enable;
       dracoQuantizationBitsInputNormal.Enabled = enable;
       dracoQuantizationBitsInputTexture.Enabled = enable;
