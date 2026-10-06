@@ -65,7 +65,7 @@ namespace Export_glTF
 
       useDisplayColorForUnsetMaterial.Text = Rhino.UI.Localization.LocalizeString("Use display color for objects with no material set", 6);
 
-      exportLayers.Text = Rhino.UI.LOC.STR("Export layers");
+      exportLayers.Text = Rhino.UI.Localization.LocalizeString("Export layers", 7);
 
       useRenderMeshes.Text = Rhino.UI.Localization.LocalizeString("Use render meshes", 18);
 
@@ -93,13 +93,13 @@ namespace Export_glTF
 
       useDracoCompressionCheck.Text = Rhino.UI.Localization.LocalizeString("Use Draco compression", 15);
 
-      dracoCompressionLabel.Text = Rhino.UI.LOC.STR("Draco compression level");
+      dracoCompressionLabel.Text = Rhino.UI.Localization.LocalizeString("Draco compression level", 16);
 
       dracoQuantizationBitsPositionLabel.Text = Rhino.UI.Localization.LocalizeString("Position", 22);
       dracoQuantizationBitsNormalLabel.Text = Rhino.UI.Localization.LocalizeString("Normal", 23);
       dracoQuantizationBitsTextureLabel.Text = Rhino.UI.Localization.LocalizeString("Texture", 24);
 
-      useSettingsDontShowDialogCheck.Text = Rhino.UI.LOC.STR("Always use these settings and don't show this dialog again");
+      useSettingsDontShowDialogCheck.Text = Rhino.UI.Localization.LocalizeString("Always use these settings and don't show this dialog again", 17);
 
       OptionsToDialog();
 
