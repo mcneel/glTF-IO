@@ -112,7 +112,7 @@ namespace Import_glTF
 
         //Fetch original image pixels
         {
-          var originalBitmapData = originalBmp.LockBits(bmpRectangle, System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+          var originalBitmapData = originalBmp.LockBits(bmpRectangle, System.Drawing.Imaging.ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
 
           System.Runtime.InteropServices.Marshal.Copy(originalBitmapData.Scan0, resolvedPixels, 0, countPixels);
 
@@ -120,11 +120,10 @@ namespace Import_glTF
         }
 
         //Get single channel image
+        //Use raw ints, System.Drawing.Color allocates a CGColor per instance on Mac
         Parallel.For(0, countPixels, i =>
         {
-          System.Drawing.Color color = System.Drawing.Color.FromArgb(resolvedPixels[i]);
-
-          resolvedPixels[i] = GetColorFromChannel(color, channel).ToArgb();
+          resolvedPixels[i] = GetArgbFromChannel(resolvedPixels[i], channel);
         });
 
         System.Drawing.Bitmap resolvedBmp = new System.Drawing.Bitmap(width, height);
@@ -159,21 +158,29 @@ namespace Import_glTF
       }
     }
 
-    private System.Drawing.Color GetColorFromChannel(System.Drawing.Color color, ArgbChannel channel)
+    private static int GetArgbFromChannel(int argb, ArgbChannel channel)
     {
+      int value;
+
       switch (channel)
       {
         case ArgbChannel.Red:
-          return System.Drawing.Color.FromArgb(color.R, color.R, color.R);
+          value = (argb >> 16) & 0xFF;
+          break;
         case ArgbChannel.Green:
-          return System.Drawing.Color.FromArgb(color.G, color.G, color.G);
+          value = (argb >> 8) & 0xFF;
+          break;
         case ArgbChannel.Blue:
-          return System.Drawing.Color.FromArgb(color.B, color.B, color.B);
+          value = argb & 0xFF;
+          break;
         case ArgbChannel.Alpha:
-          return System.Drawing.Color.FromArgb(color.A, color.A, color.A);
+          value = (argb >> 24) & 0xFF;
+          break;
         default:
-          return color;
+          return argb;
       }
+
+      return unchecked((int)0xFF000000) | (value << 16) | (value << 8) | value;
     }
 
   }
