@@ -33,6 +33,9 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
   </PropertyGroup>
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform(linux))">
+    <OutputPath>$(RhinoPlugInOutputDir)glTF\</OutputPath>
+  </PropertyGroup>
   <PropertyGroup>
     <RunPostBuildEvent>Always</RunPostBuildEvent>
   </PropertyGroup>
